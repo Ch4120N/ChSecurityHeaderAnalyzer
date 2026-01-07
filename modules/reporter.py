@@ -136,3 +136,13 @@ class ReportGenerator:
                 f.write(f"• {rec}\n")
         
         return filepath
+    
+    def _generate_json_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
+        """Generate JSON report"""
+        filepath = os.path.join(self.output_dir, f"{filename_base}.json")
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(analysis, f, indent=2, default=str)
+        
+        return filepath
+
