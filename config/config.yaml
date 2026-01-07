@@ -145,10 +145,10 @@ grading:
     weak_configuration: -5
   
   grade_thresholds:
-    A: 90
-    B: 75
-    C: 60
-    D: 40
+    A: 80
+    B: 65
+    C: 50
+    D: 35
     F: 0
 
 # Additional Checks Configuration
