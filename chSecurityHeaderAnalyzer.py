@@ -53,16 +53,20 @@ class ChSecurityHeaderAnalyzer:
     
     def run(self):
         parser = argparse.ArgumentParser(
-            description="ChSecurityHeaderAnalyzer - Comprehensive Security Header Analysis Tool",
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-            epilog="""
-Examples:
-  %(prog)s https://example.com
-  %(prog)s -u https://example.com -o json csv
-  %(prog)s -f urls.txt -t 20 -o all
-  %(prog)s -u https://example.com --no-verify --timeout 30
-  %(prog)s -b -f urls.txt -o html --output-dir ./reports
-""")
+            description=(
+                "ChSecurityHeaderAnalyzer - Comprehensive Security Header Analysis Tool\n"
+                "Owned By: @Ch4120N\n"
+                "GitHub Repo: https://github.com/Ch4120N/ChSecurityHeaderAnalyzer"
+            ),
+            formatter_class=argparse.RawTextHelpFormatter,
+            epilog=(
+                "Examples:\n"
+                "  %(prog)s https://example.com\n"
+                "  %(prog)s -u https://example.com -o json csv\n"
+                "  %(prog)s -f urls.txt -t 20 -o all\n"
+                "  %(prog)s -u https://example.com --no-verify --timeout 30\n"
+                "  %(prog)s -b -f urls.txt -o html --output-dir ./reports\n"
+            ))
         
         # Input options
         input_group = parser.add_mutually_exclusive_group(required=True)
