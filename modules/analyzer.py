@@ -241,4 +241,17 @@ class HeaderAnalyzer:
             })
             analysis['security_score'] -= 2
     
+    def _calculate_grade(self, score: int) -> str:
+        """Calculate security grade based on score"""
+        if score >= 90:
+            return 'A'
+        elif score >= 80:
+            return 'B'
+        elif score >= 70:
+            return 'C'
+        elif score >= 60:
+            return 'D'
+        else:
+            return 'F'
+    
     
