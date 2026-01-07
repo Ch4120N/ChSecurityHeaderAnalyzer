@@ -10,9 +10,6 @@ import os
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
-# Read README
-with open('README.md', 'r', encoding='utf-8') as f:
-    long_description = f.read()
 
 setup(
     name="ChSecurityHeaderAnalyzer",
