@@ -233,3 +233,29 @@ class ConsoleUI:
             'F': "Critical security issues, immediate action required"
         }
         return comments.get(grade, "Unknown grade")
+    
+class ProgressTracker:
+    """Track progress of scans"""
+    def __init__(self, total: int):
+        self.total = total
+        self.completed = 0
+        self.start_time = datetime.now()
+    
+    def update(self, increment: int = 1):
+        """Update completed count"""
+        self.completed += increment
+    
+    def get_percentage(self) -> float:
+        """Get completion percentage"""
+        return (self.completed / self.total) * 100 if self.total > 0 else 0
+    
+    def get_elapsed_time(self) -> float:
+        """Get elapsed time in seconds"""
+        return (datetime.now() - self.start_time).total_seconds()
+    
+    def get_eta(self) -> float:
+        """Get estimated time remaining"""
+        if self.completed == 0:
+            return 0
+        elapsed = self.get_elapsed_time()
+        return (elapsed / self.completed) * (self.total - self.completed)
