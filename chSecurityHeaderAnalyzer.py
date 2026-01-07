@@ -128,4 +128,23 @@ class ChSecurityHeaderAnalyzer:
         
         return results
     
+
+    def _analyze_single_worker(self, url: str, output_formats: List[str] = None) -> Dict[str, Any]:
+        """Worker function for multithreaded analysis"""
+        try:
+            headers = self.scanner.scan_url(url)
+            if headers:
+                analysis = self.analyzer.analyze_headers(headers, url)
+                analysis['url'] = url
+                
+                # Generate individual reports if requested
+                if output_formats:
+                    self.reporter.generate_reports(analysis, url, output_formats)
+                
+                return analysis
+        except Exception as e:
+            self.logger.error(f"Worker error for {url}: {str(e)}")
+        
+        return None
+    
     
