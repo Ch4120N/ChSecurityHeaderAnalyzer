@@ -609,28 +609,150 @@ class ReportGenerator:
             writer.writerow(['SECTION 5: PRIORITIZED RECOMMENDATIONS'])
             writer.writerow(['=' * 60])
             if recommendations_data:
-                # Sort by priority
-                recommendations_df_sorted = recommendations_df.sort_values(
-                    by='Priority', 
-                    key=lambda x: x.map({'High': 1, 'Medium': 2, 'Low': 3})
-                )
+                # Categorize by priority
+                critical_recs = []
+                high_recs = []
+                medium_recs = []
+                low_recs = []
                 
-                writer.writerow(['Priority', 'Category', 'Recommendation', 'Estimated Effort', 'Timeline'])
+                for rec in analysis['recommendations']:
+                    rec_lower = rec.lower()
+                    if any(word in rec_lower for word in ['critical:', 'immediate', 'urgent']):
+                        critical_recs.append(rec)
+                    elif any(word in rec_lower for word in ['high:', 'important', 'security risk']):
+                        high_recs.append(rec)
+                    elif any(word in rec_lower for word in ['medium:', 'consider', 'recommended']):
+                        medium_recs.append(rec)
+                    else:
+                        low_recs.append(rec)
+                
+                # Write summary
+                writer.writerow(['RECOMMENDATION SUMMARY'])
+                writer.writerow(['Total Recommendations:', len(analysis['recommendations'])])
+                writer.writerow(['Critical Priority:', len(critical_recs)])
+                writer.writerow(['High Priority:', len(high_recs)])
+                writer.writerow(['Medium Priority:', len(medium_recs)])
+                writer.writerow(['Low Priority:', len(low_recs)])
+                writer.writerow(['Estimated Implementation Time:', 
+                                self._get_estimated_implementation_time(len(critical_recs), len(high_recs))])
+                writer.writerow([])
+                
+                # Write critical recommendations
+                if critical_recs:
+                    writer.writerow(['CRITICAL PRIORITY RECOMMENDATIONS (Immediate Action Required)'])
+                    writer.writerow(['-' * 60])
+                    writer.writerow(['#', 'Recommendation', 'Impact', 'Effort'])
+                    writer.writerow(['-' * 60])
+                    for i, rec in enumerate(critical_recs, 1):
+                        clean_rec = rec.replace('CRITICAL:', '').strip()
+                        writer.writerow([
+                            i,
+                            clean_rec[:120] + ('...' if len(clean_rec) > 120 else ''),
+                            'HIGH',
+                            'IMMEDIATE'
+                        ])
+                    writer.writerow([])
+                
+                # Write high priority recommendations
+                if high_recs:
+                    writer.writerow(['HIGH PRIORITY RECOMMENDATIONS (Important Security Improvements)'])
+                    writer.writerow(['-' * 60])
+                    writer.writerow(['#', 'Recommendation', 'Impact', 'Effort'])
+                    writer.writerow(['-' * 60])
+                    for i, rec in enumerate(high_recs, 1):
+                        clean_rec = rec.replace('HIGH PRIORITY:', '').replace('HIGH:', '').strip()
+                        writer.writerow([
+                            i,
+                            clean_rec[:120] + ('...' if len(clean_rec) > 120 else ''),
+                            'HIGH',
+                            'SHORT-TERM'
+                        ])
+                    writer.writerow([])
+                
+                # Write medium priority recommendations
+                if medium_recs:
+                    writer.writerow(['MEDIUM PRIORITY RECOMMENDATIONS (Recommended Enhancements)'])
+                    writer.writerow(['-' * 60])
+                    writer.writerow(['#', 'Recommendation', 'Impact', 'Effort'])
+                    writer.writerow(['-' * 60])
+                    for i, rec in enumerate(medium_recs, 1):
+                        clean_rec = rec.replace('MEDIUM PRIORITY:', '').replace('MEDIUM:', '').strip()
+                        writer.writerow([
+                            i,
+                            clean_rec[:120] + ('...' if len(clean_rec) > 120 else ''),
+                            'MEDIUM',
+                            'MEDIUM-TERM'
+                        ])
+                    writer.writerow([])
+                
+                # Write low priority recommendations
+                if low_recs:
+                    writer.writerow(['LOW PRIORITY RECOMMENDATIONS (Best Practices)'])
+                    writer.writerow(['-' * 60])
+                    writer.writerow(['#', 'Recommendation', 'Impact', 'Effort'])
+                    writer.writerow(['-' * 60])
+                    for i, rec in enumerate(low_recs, 1):
+                        writer.writerow([
+                            i,
+                            rec[:120] + ('...' if len(rec) > 120 else ''),
+                            'LOW',
+                            'LONG-TERM'
+                        ])
+                    writer.writerow([])
+                
+                # Write action plan
+                writer.writerow(['RECOMMENDED ACTION PLAN'])
                 writer.writerow(['-' * 60])
-                for _, row in recommendations_df_sorted.iterrows():
+                writer.writerow(['Timeline', 'Actions', 'Expected Outcome'])
+                writer.writerow(['-' * 60])
+                
+                if critical_recs:
                     writer.writerow([
-                        row['Priority'],
-                        row['Category'],
-                        row['Recommendation'],
-                        row['Estimated Effort'],
-                        row['Timeline']
+                        'Immediate (24-48 hours)',
+                        f'Implement {min(3, len(critical_recs))} critical recommendations',
+                        'Mitigate critical security risks'
                     ])
+                
+                if high_recs:
+                    writer.writerow([
+                        'Short-term (1 week)',
+                        f'Implement {min(5, len(high_recs))} high priority recommendations',
+                        'Significantly improve security posture'
+                    ])
+                
+                if medium_recs:
+                    writer.writerow([
+                        'Medium-term (2-4 weeks)',
+                        f'Implement {min(8, len(medium_recs))} medium priority recommendations',
+                        'Enhance security best practices'
+                    ])
+                
+                if low_recs:
+                    writer.writerow([
+                        'Long-term (1-3 months)',
+                        f'Consider {min(10, len(low_recs))} low priority recommendations',
+                        'Achieve comprehensive security coverage'
+                    ])
+                
+                writer.writerow([])
             else:
                 writer.writerow(['No recommendations needed - All configurations are optimal'])
-            writer.writerow([])
+                writer.writerow([])
             
-            # 6. RISK ASSESSMENT MATRIX
-            writer.writerow(['SECTION 6: RISK ASSESSMENT MATRIX'])
+            # 6. IMPROVEMENT SUMMARY
+            writer.writerow(['SECTION 6: IMPROVEMENT SUMMARY'])
+            writer.writerow(['=' * 60])
+
+            improvement = self._get_improvement_summary(analysis)
+            writer.writerow(['Current Security Score:', f"{analysis['security_score']}/100"])
+            writer.writerow(['Current Security Grade:', analysis['grade']])
+            writer.writerow(['Potential Score (if all fixed):', f"{improvement['potential_score']}/100"])
+            writer.writerow(['Potential Grade Improvement:', 
+                            self._calculate_potential_grade(improvement['potential_score'])])
+            writer.writerow(['Key Areas for Improvement:', improvement['key_areas']])
+            writer.writerow([])
+            # 7. RISK ASSESSMENT MATRIX
+            writer.writerow(['SECTION 7: RISK ASSESSMENT MATRIX'])
             writer.writerow(['=' * 60])
             writer.writerow(['Risk Category', 'Risk Level', 'Count', 'Description'])
             writer.writerow(['-' * 60])
@@ -638,8 +760,8 @@ class ReportGenerator:
                 writer.writerow([row['Risk Category'], row['Risk Level'], row['Count'], row['Description']])
             writer.writerow([])
             
-            # 7. COMPLIANCE STATUS
-            writer.writerow(['SECTION 7: COMPLIANCE STATUS'])
+            # 8. COMPLIANCE STATUS
+            writer.writerow(['SECTION 8: COMPLIANCE STATUS'])
             writer.writerow(['=' * 60])
             writer.writerow(['Standard', 'Requirement', 'Compliance Status', 'Notes'])
             writer.writerow(['-' * 60])
@@ -647,8 +769,8 @@ class ReportGenerator:
                 writer.writerow([row['Standard'], row['Requirement'], row['Compliance Status'], row['Notes']])
             writer.writerow([])
             
-            # 8. TECHNICAL DETAILS
-            writer.writerow(['SECTION 8: TECHNICAL DETAILS'])
+            # 9. TECHNICAL DETAILS
+            writer.writerow(['SECTION 9: TECHNICAL DETAILS'])
             writer.writerow(['=' * 60])
             writer.writerow(['Header Name', 'Header Type', 'Value', 'Security Issue', 'Risk'])
             writer.writerow(['-' * 60])
@@ -662,8 +784,8 @@ class ReportGenerator:
                 ])
             writer.writerow([])
             
-            # 9. COOKIE SECURITY ANALYSIS
-            writer.writerow(['SECTION 9: COOKIE SECURITY ANALYSIS'])
+            # 10. COOKIE SECURITY ANALYSIS
+            writer.writerow(['SECTION 10: COOKIE SECURITY ANALYSIS'])
             writer.writerow(['=' * 60])
             if analysis.get('cookie_analysis'):
                 writer.writerow(['Cookie Count', 'Secure Cookies', 'HttpOnly Cookies', 'SameSite Cookies', 'Total Issues'])
@@ -697,8 +819,8 @@ class ReportGenerator:
                 writer.writerow(['No cookie headers found'])
             writer.writerow([])
             
-            # 10. CORS CONFIGURATION ANALYSIS
-            writer.writerow(['SECTION 10: CORS CONFIGURATION ANALYSIS'])
+            # 11. CORS CONFIGURATION ANALYSIS
+            writer.writerow(['SECTION 11: CORS CONFIGURATION ANALYSIS'])
             writer.writerow(['=' * 60])
             if analysis.get('cors_analysis'):
                 cors = analysis['cors_analysis']
@@ -721,8 +843,8 @@ class ReportGenerator:
                 writer.writerow(['No CORS headers configured'])
             writer.writerow([])
             
-            # 11. ADDITIONAL SECURITY CHECKS
-            writer.writerow(['SECTION 11: ADDITIONAL SECURITY CHECKS'])
+            # 12. ADDITIONAL SECURITY CHECKS
+            writer.writerow(['SECTION 12: ADDITIONAL SECURITY CHECKS'])
             writer.writerow(['=' * 60])
             if analysis.get('additional_checks'):
                 writer.writerow(['Check', 'Result'])
@@ -739,8 +861,8 @@ class ReportGenerator:
                 writer.writerow(['No additional checks performed'])
             writer.writerow([])
             
-            # 12. ACTION PLAN
-            writer.writerow(['SECTION 12: ACTION PLAN'])
+            # 13. ACTION PLAN
+            writer.writerow(['SECTION 13: ACTION PLAN'])
             writer.writerow(['=' * 60])
             
             # Immediate actions (High priority)
@@ -776,8 +898,8 @@ class ReportGenerator:
                     writer.writerow([f'• {action}'])
                 writer.writerow([])
             
-            # 13. SCAN METADATA
-            writer.writerow(['SECTION 13: SCAN METADATA'])
+            # 14. SCAN METADATA
+            writer.writerow(['SECTION 14: SCAN METADATA'])
             writer.writerow(['=' * 60])
             writer.writerow(['Field', 'Value'])
             writer.writerow(['-' * 60])
@@ -797,6 +919,19 @@ class ReportGenerator:
         
         return filepath
 
+    def _calculate_potential_grade(self, score: int) -> str:
+        """Calculate potential grade based on score"""
+        if score >= 90:
+            return 'A (Excellent)'
+        elif score >= 75:
+            return 'B (Good)'
+        elif score >= 60:
+            return 'C (Fair)'
+        elif score >= 40:
+            return 'D (Poor)'
+        else:
+            return 'F (Critical)'
+        
     def _get_header_recommendation(self, header: str, status: str, value: str) -> str:
         """Get recommendation for a specific header"""
         if status == 'Missing':
