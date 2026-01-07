@@ -88,7 +88,23 @@ class ChSecurityHeaderAnalyzer:
         
         args = parser.parse_args()
 
+        output_formats = None if args.no_report else args.output
+
+        if 'all' in output_formats:
+            output_formats = ['txt', 'json', 'csv', 'html']
         
+        # Process based on input type
+        if args.url:
+            if args.bulk:
+                urls = [url.strip() for url in args.url.split(',')]
+                self.analyze_multiple(urls, output_formats, args.output_dir, args.threads)
+            else:
+                self.analyze_single(args.url, output_formats)
+        
+        elif args.file:
+            self.analyze_from_file(args.file, output_formats, args.output_dir, args.threads)
+        
+        self.ui.print_success("Analysis completed!")
 
     def analyze_single(self, url: str, output_formats: List[str] = None) -> Dict[str, Any]:
         """Analyze a single website"""
