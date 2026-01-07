@@ -71,3 +71,22 @@ class ReportGenerator:
         
         return report_paths
 
+    def _sanitize_filename(self, url: str) -> str:
+        """Create safe filename from URL"""
+        # Remove protocol
+        if '://' in url:
+            url = url.split('://')[1]
+        
+        # Replace special characters
+        filename = url.replace('/', '_').replace(':', '_').replace('?', '_')
+        filename = filename.replace('&', '_').replace('=', '_').replace('%', '_')
+        
+        # Limit length
+        if len(filename) > 100:
+            filename = filename[:100]
+        
+        # Add timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return f"{filename}_{timestamp}"
+    
+    
