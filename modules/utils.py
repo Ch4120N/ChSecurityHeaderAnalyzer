@@ -160,3 +160,17 @@ def is_valid_ip(address: str) -> bool:
         return True
     except ValueError:
         return False
+    
+def get_file_extension(filename: str) -> str:
+    """Get file extension from filename"""
+    return Path(filename).suffix.lower()
+
+def merge_dicts(dict1: Dict, dict2: Dict) -> Dict:
+    """Merge two dictionaries recursively"""
+    result = dict1.copy()
+    for key, value in dict2.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = merge_dicts(result[key], value)
+        else:
+            result[key] = value
+    return result
