@@ -210,326 +210,61 @@ class ReportGenerator:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Header Analysis Report</title>
+    <title>Ch4120N Security Header Analysis Report</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {{
-            --primary-color: #2c3e50;
-            --secondary-color: #3498db;
-            --success-color: #27ae60;
-            --warning-color: #f39c12;
-            --danger-color: #e74c3c;
-            --dark-color: #2c3e50;
-            --light-color: #ecf0f1;
-            --gray-color: #95a5a6;
-            --border-radius: 10px;
-            --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            --transition: all 0.3s ease;
-        }}
+        :root{{--primary-color:#2c3e50;--secondary-color:#3498db;--success-color:#27ae60;--warning-color:#f39c12;--danger-color:#e74c3c;--dark-color:#2c3e50;--light-color:#ecf0f1;--gray-color:#95a5a6;--border-radius:10px;--box-shadow:0 4px 12px rgba(0, 0, 0, 0.1);--transition:all 0.3s ease}}
+        *{{margin:0;padding:0;box-sizing:border-box}}
+        body{{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#333;background:linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%);min-height:100vh;padding:20px}}
+        .container{{max-width:1200px;margin:0 auto}}
+        .header{{background:linear-gradient(135deg,var(--primary-color) 0%,#1a252f 100%);color:#fff;padding:30px;border-radius:var(--border-radius);margin-bottom:30px;box-shadow:var(--box-shadow);position:relative;overflow:hidden}}
+        .header::before{{content:'';position:absolute;top:-50%;right:-50%;width:200px;height:200px;background:rgb(255 255 255 / .05);border-radius:50%}}
+        .header h1{{font-size:2.5rem;margin-bottom:10px;display:flex;align-items:center;gap:15px}}
+        .header h1 i{{color:var(--secondary-color)}}
+        .header p{{font-size:1.1rem;opacity:.9}}
+        .summary-cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:30px}}
+        .card{{background:#fff;border-radius:var(--border-radius);padding:25px;box-shadow:var(--box-shadow);transition:var(--transition)}}
+        .card:hover{{transform:translateY(-5px);box-shadow:0 8px 20px rgb(0 0 0 / .15)}}
+        .card h3{{color:var(--primary-color);margin-bottom:15px;font-size:1.3rem;border-bottom:2px solid var(--light-color);padding-bottom:10px;display:flex;align-items:center;gap:10px}}
+        .score-card{{text-align:center;background:linear-gradient(135deg,#fff 0%,#f8f9fa 100%)}}
+        .score{{font-size:4rem;font-weight:800;margin:20px 0}}
+        .grade{{display:inline-block;padding:8px 25px;border-radius:50px;font-weight:700;font-size:1.5rem;letter-spacing:1px}}
+        .grade-a{{background-color:#d5f4e6;color:var(--success-color)}}
+        .grade-b{{background-color:#fff3cd;color:#e6a700}}
+        .grade-c{{background-color:#ffeaa7;color:#e67e22}}
+        .grade-d{{background-color:#fadbd8;color:#e74c3c}}
+        .grade-f{{background-color:var(--danger-color);color:#fff}}
+        .section{{background:#fff;border-radius:var(--border-radius);padding:30px;margin-bottom:30px;box-shadow:var(--box-shadow)}}
+        .section h2{{color:var(--primary-color);margin-bottom:25px;font-size:1.8rem;border-left:5px solid var(--secondary-color);padding-left:15px;display:flex;align-items:center;gap:12px}}
+        table{{width:100%;border-collapse:collapse;margin:15px 0;border-radius:var(--border-radius);overflow:hidden;box-shadow:0 2px 8px rgb(0 0 0 / .05)}}
+        th{{background-color:var(--primary-color);color:#fff;font-weight:600;padding:18px 15px;text-align:left}}
+        td{{padding:16px 15px;border-bottom:1px solid #eee}}
+        tr:hover{{background-color:#f9f9f9}}
+        .present,.missing{{font-weight:600;display:inline-flex;align-items:center;gap:8px;padding:6px 15px;border-radius:50px}}
+        .present{{background-color:#d5f4e6;color:var(--success-color)}}
+        .missing{{background-color:#fadbd8;color:var(--danger-color)}}
+        .vuln-high,.vuln-medium,.vuln-low,.vuln-critical{{font-weight:700;display:inline-block;padding:6px 15px;border-radius:50px;text-align:center;min-width:100px}}
+        .vuln-critical{{background-color:#f44;color:#fff}}
+        .vuln-high{{background-color:#fadbd8;color:var(--danger-color)}}
+        .vuln-medium{{background-color:#ffeaa7;color:#e67e22}}
+        .vuln-low{{background-color:#fff3cd;color:#f39c12}}
+        ul{{padding-left:20px}}
+        li{{margin-bottom:12px;padding-left:10px;position:relative}}
+        li:before{{content:'→';position:absolute;left:-15px;color:var(--secondary-color);font-weight:700}}
+        pre{{background-color:#2c3e50;color:#ecf0f1;padding:20px;border-radius:var(--border-radius);overflow-x:auto;font-family:'Courier New',monospace;font-size:.9rem;line-height:1.5;margin-top:15px;box-shadow:inset 0 2px 10px rgb(0 0 0 / .3)}}
+        .status-badge{{display:flex;align-items:center;gap:10px}}
+        .footer{{text-align:center;margin-top:40px;padding:20px;color:var(--gray-color);font-size:.9rem;border-top:1px solid #eee}}
+        .recommendation-list li{{background:#f8f9fa;padding:15px;border-radius:8px;margin-bottom:10px;border-left:4px solid var(--secondary-color)}}
+        @media (max-width:768px){{.header h1{{font-size:2rem}}.summary-cards{{grid-template-columns:1fr}}.score{{font-size:3rem}}table{{display:block;overflow-x:auto}}.section{{padding:20px}}}}
+        @keyframes pulse{{0%{{transform:scale(1)}}50%{{transform:scale(1.05)}}100%{{transform:scale(1)}}}}
+        .grade-f{{animation:pulse 2s infinite}}
 
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }}
-
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }}
-
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
-        }}
-
-        .header {{
-            background: linear-gradient(135deg, var(--primary-color) 0%, #1a252f 100%);
-            color: white;
-            padding: 30px;
-            border-radius: var(--border-radius);
-            margin-bottom: 30px;
-            box-shadow: var(--box-shadow);
-            position: relative;
-            overflow: hidden;
-        }}
-
-        .header::before {{
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -50%;
-            width: 200px;
-            height: 200px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 50%;
-        }}
-
-        .header h1 {{
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }}
-
-        .header h1 i {{
-            color: var(--secondary-color);
-        }}
-
-        .header p {{
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }}
-
-        .summary-cards {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }}
-
-        .card {{
-            background: white;
-            border-radius: var(--border-radius);
-            padding: 25px;
-            box-shadow: var(--box-shadow);
-            transition: var(--transition);
-        }}
-
-        .card:hover {{
-            transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-        }}
-
-        .card h3 {{
-            color: var(--primary-color);
-            margin-bottom: 15px;
-            font-size: 1.3rem;
-            border-bottom: 2px solid var(--light-color);
-            padding-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }}
-
-        .score-card {{
-            text-align: center;
-            background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
-        }}
-
-        .score {{
-            font-size: 4rem;
-            font-weight: 800;
-            margin: 20px 0;
-        }}
-
-        .grade {{
-            display: inline-block;
-            padding: 8px 25px;
-            border-radius: 50px;
-            font-weight: bold;
-            font-size: 1.5rem;
-            letter-spacing: 1px;
-        }}
-
-        .grade-a {{ background-color: #d5f4e6; color: var(--success-color); }}
-        .grade-b {{ background-color: #fff3cd; color: #e6a700; }}
-        .grade-c {{ background-color: #ffeaa7; color: #e67e22; }}
-        .grade-d {{ background-color: #fadbd8; color: #e74c3c; }}
-        .grade-f {{ background-color: var(--danger-color); color: white; }}
-
-        .section {{
-            background: white;
-            border-radius: var(--border-radius);
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: var(--box-shadow);
-        }}
-
-        .section h2 {{
-            color: var(--primary-color);
-            margin-bottom: 25px;
-            font-size: 1.8rem;
-            border-left: 5px solid var(--secondary-color);
-            padding-left: 15px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }}
-
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            border-radius: var(--border-radius);
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }}
-
-        th {{
-            background-color: var(--primary-color);
-            color: white;
-            font-weight: 600;
-            padding: 18px 15px;
-            text-align: left;
-        }}
-
-        td {{
-            padding: 16px 15px;
-            border-bottom: 1px solid #eee;
-        }}
-
-        tr:hover {{
-            background-color: #f9f9f9;
-        }}
-
-        .present, .missing {{
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 15px;
-            border-radius: 50px;
-        }}
-
-        .present {{
-            background-color: #d5f4e6;
-            color: var(--success-color);
-        }}
-
-        .missing {{
-            background-color: #fadbd8;
-            color: var(--danger-color);
-        }}
-
-        .vuln-high, .vuln-medium, .vuln-low, .vuln-critical {{
-            font-weight: bold;
-            display: inline-block;
-            padding: 6px 15px;
-            border-radius: 50px;
-            text-align: center;
-            min-width: 100px;
-        }}
-
-        .vuln-critical {{
-            background-color: #ff4444;
-            color: white;
-        }}
-
-        .vuln-high {{
-            background-color: #fadbd8;
-            color: var(--danger-color);
-        }}
-
-        .vuln-medium {{
-            background-color: #ffeaa7;
-            color: #e67e22;
-        }}
-
-        .vuln-low {{
-            background-color: #fff3cd;
-            color: #f39c12;
-        }}
-
-        ul {{
-            padding-left: 20px;
-        }}
-
-        li {{
-            margin-bottom: 12px;
-            padding-left: 10px;
-            position: relative;
-        }}
-
-        li:before {{
-            content: '→';
-            position: absolute;
-            left: -15px;
-            color: var(--secondary-color);
-            font-weight: bold;
-        }}
-
-        pre {{
-            background-color: #2c3e50;
-            color: #ecf0f1;
-            padding: 20px;
-            border-radius: var(--border-radius);
-            overflow-x: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
-            line-height: 1.5;
-            margin-top: 15px;
-            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
-        }}
-
-        .status-badge {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }}
-
-        .footer {{
-            text-align: center;
-            margin-top: 40px;
-            padding: 20px;
-            color: var(--gray-color);
-            font-size: 0.9rem;
-            border-top: 1px solid #eee;
-        }}
-
-        .recommendation-list li {{
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            border-left: 4px solid var(--secondary-color);
-        }}
-
-        /* Responsive design */
-        @media (max-width: 768px) {{
-            .header h1 {{
-                font-size: 2rem;
-            }}
-            
-            .summary-cards {{
-                grid-template-columns: 1fr;
-            }}
-            
-            .score {{
-                font-size: 3rem;
-            }}
-            
-            table {{
-                display: block;
-                overflow-x: auto;
-            }}
-            
-            .section {{
-                padding: 20px;
-            }}
-        }}
-
-        /* Animation for grade */
-        @keyframes pulse {{
-            0% {{ transform: scale(1); }}
-            50% {{ transform: scale(1.05); }}
-            100% {{ transform: scale(1); }}
-        }}
-
-        .grade-f {{
-            animation: pulse 2s infinite;
-        }}
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1><i class="fas fa-shield-alt"></i> Security Header Analysis Report</h1>
+            <h1><i class="fas fa-shield-alt"></i> Ch4120N Security Header Analysis Report</h1>
             <p><i class="far fa-calendar-alt"></i> Generated: {analysis['scan_date']}</p>
         </div>
         
@@ -585,7 +320,7 @@ class ReportGenerator:
         </div>
         
         <div class="footer">
-            <p><i class="fas fa-info-circle"></i> Report generated by Security Header Analyzer</p>
+            <p><i class="fas fa-info-circle"></i> Report generated by Ch4120N Security Header Analyzer</p>
             <p>This report highlights security vulnerabilities that should be addressed immediately.</p>
         </div>
     </div>
@@ -911,176 +646,39 @@ class ReportGenerator:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Combined Security Header Analysis Report</title>
+        <title>Combined Ch4120N Security Header Analysis Report</title>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
-            :root {{
-                --primary-color: #2c3e50;
-                --secondary-color: #3498db;
-                --success-color: #27ae60;
-                --warning-color: #f39c12;
-                --danger-color: #e74c3c;
-                --dark-color: #2c3e50;
-                --light-color: #ecf0f1;
-                --gray-color: #95a5a6;
-                --border-radius: 10px;
-                --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                --transition: all 0.3s ease;
-            }}
-
-            * {{
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }}
-
-            body {{
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                line-height: 1.6;
-                color: #333;
-                background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-                min-height: 100vh;
-                padding: 20px;
-            }}
-
-            .container {{
-                max-width: 1200px;
-                margin: 0 auto;
-            }}
-
-            .header {{
-                background: linear-gradient(135deg, var(--primary-color) 0%, #1a252f 100%);
-                color: white;
-                padding: 30px;
-                border-radius: var(--border-radius);
-                margin-bottom: 30px;
-                box-shadow: var(--box-shadow);
-                position: relative;
-                overflow: hidden;
-            }}
-
-            .header::before {{
-                content: '';
-                position: absolute;
-                top: -50%;
-                right: -50%;
-                width: 200px;
-                height: 200px;
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 50%;
-            }}
-
-            .header h1 {{
-                font-size: 2.5rem;
-                margin-bottom: 10px;
-                display: flex;
-                align-items: center;
-                gap: 15px;
-            }}
-
-            .header h1 i {{
-                color: var(--secondary-color);
-            }}
-
-            .header p {{
-                font-size: 1.1rem;
-                opacity: 0.9;
-            }}
-
-            .stats {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                gap: 20px;
-                margin: 30px 0;
-            }}
-
-            .stat-card {{
-                background: white;
-                padding: 20px;
-                border-radius: var(--border-radius);
-                text-align: center;
-                box-shadow: var(--box-shadow);
-                transition: var(--transition);
-            }}
-
-            .stat-card:hover {{
-                transform: translateY(-5px);
-            }}
-
-            .stat-value {{
-                font-size: 2em;
-                font-weight: bold;
-                margin: 10px 0;
-            }}
-
-            table {{
-                width: 100%;
-                border-collapse: collapse;
-                margin: 20px 0;
-                border-radius: var(--border-radius);
-                overflow: hidden;
-                box-shadow: var(--box-shadow);
-            }}
-
-            th {{
-                background-color: var(--primary-color);
-                color: white;
-                font-weight: 600;
-                padding: 18px 15px;
-                text-align: left;
-            }}
-
-            td {{
-                padding: 16px 15px;
-                border-bottom: 1px solid #eee;
-            }}
-
-            tr:hover {{
-                background-color: #f9f9f9;
-            }}
-
-            .grade-a {{ background-color: #d5f4e6; }}
-            .grade-b {{ background-color: #fff3cd; }}
-            .grade-c {{ background-color: #ffeaa7; }}
-            .grade-d {{ background-color: #fadbd8; }}
-            .grade-f {{ background-color: #f5c6cb; }}
-
-            .grade {{
-                display: inline-block;
-                padding: 4px 12px;
-                border-radius: 50px;
-                font-weight: bold;
-                font-size: 0.9rem;
-            }}
-
-            .grade-a .grade {{ background-color: #27ae60; color: white; }}
-            .grade-b .grade {{ background-color: #f39c12; color: white; }}
-            .grade-c .grade {{ background-color: #e67e22; color: white; }}
-            .grade-d .grade {{ background-color: #e74c3c; color: white; }}
-            .grade-f .grade {{ background-color: #c0392b; color: white; }}
-
-            .analysis-section {{
-                background: white;
-                border-radius: var(--border-radius);
-                padding: 20px;
-                margin-bottom: 20px;
-                box-shadow: var(--box-shadow);
-            }}
-
-            @media (max-width: 768px) {{
-                .header h1 {{
-                    font-size: 2rem;
-                }}
-                
-                .stats {{
-                    grid-template-columns: 1fr;
-                }}
-                
-                table {{
-                    display: block;
-                    overflow-x: auto;
-                }}
-            }}
+            :root{{--primary-color:#2c3e50;--secondary-color:#3498db;--success-color:#27ae60;--warning-color:#f39c12;--danger-color:#e74c3c;--dark-color:#2c3e50;--light-color:#ecf0f1;--gray-color:#95a5a6;--border-radius:10px;--box-shadow:0 4px 12px rgba(0, 0, 0, 0.1);--transition:all 0.3s ease}}
+            *{{margin:0;padding:0;box-sizing:border-box}}
+            body{{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#333;background:linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%);min-height:100vh;padding:20px}}
+            .container{{max-width:1200px;margin:0 auto}}
+            .header{{background:linear-gradient(135deg,var(--primary-color) 0%,#1a252f 100%);color:#fff;padding:30px;border-radius:var(--border-radius);margin-bottom:30px;box-shadow:var(--box-shadow);position:relative;overflow:hidden}}
+            .header::before{{content:'';position:absolute;top:-50%;right:-50%;width:200px;height:200px;background:rgb(255 255 255 / .05);border-radius:50%}}
+            .header h1{{font-size:2.5rem;margin-bottom:10px;display:flex;align-items:center;gap:15px}}
+            .header h1 i{{color:var(--secondary-color)}}
+            .header p{{font-size:1.1rem;opacity:.9}}
+            .stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin:30px 0}}
+            .stat-card{{background:#fff;padding:20px;border-radius:var(--border-radius);text-align:center;box-shadow:var(--box-shadow);transition:var(--transition)}}
+            .stat-card:hover{{transform:translateY(-5px)}}
+            .stat-value{{font-size:2em;font-weight:700;margin:10px 0}}
+            table{{width:100%;border-collapse:collapse;margin:20px 0;border-radius:var(--border-radius);overflow:hidden;box-shadow:var(--box-shadow)}}
+            th{{background-color:var(--primary-color);color:#fff;font-weight:600;padding:18px 15px;text-align:left}}
+            td{{padding:16px 15px;border-bottom:1px solid #eee}}
+            tr:hover{{background-color:#f9f9f9}}
+            .grade-a{{background-color:#d5f4e6}}
+            .grade-b{{background-color:#fff3cd}}
+            .grade-c{{background-color:#ffeaa7}}
+            .grade-d{{background-color:#fadbd8}}
+            .grade-f{{background-color:#f5c6cb}}
+            .grade{{display:inline-block;padding:4px 12px;border-radius:50px;font-weight:700;font-size:.9rem}}
+            .grade-a .grade{{background-color:#27ae60;color:#fff}}
+            .grade-b .grade{{background-color:#f39c12;color:#fff}}
+            .grade-c .grade{{background-color:#e67e22;color:#fff}}
+            .grade-d .grade{{background-color:#e74c3c;color:#fff}}
+            .grade-f .grade{{background-color:#c0392b;color:#fff}}
+            .analysis-section{{background:#fff;border-radius:var(--border-radius);padding:20px;margin-bottom:20px;box-shadow:var(--box-shadow)}}
+            @media (max-width:768px){{.header h1{{font-size:2rem}}.stats{{grid-template-columns:1fr}}table{{display:block;overflow-x:auto}}}}
         </style>
     </head>
     <body>
@@ -1138,7 +736,7 @@ class ReportGenerator:
             {analysis_sections_html}
             
             <div class="footer" style="text-align: center; margin-top: 40px; padding: 20px; color: var(--gray-color); font-size: 0.9rem; border-top: 1px solid #eee;">
-                <p><i class="fas fa-info-circle"></i> Report generated by Security Header Analyzer</p>
+                <p><i class="fas fa-info-circle"></i> Report generated by Ch4120N Security Header Analyzer</p>
                 <p>This combined report summarizes security analysis for multiple websites.</p>
             </div>
         </div>
