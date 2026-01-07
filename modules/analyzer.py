@@ -180,4 +180,22 @@ class HeaderAnalyzer:
             })
             analysis['security_score'] -= 5
     
-    
+    def _analyze_content_type_options(self, headers: Dict[str, str], analysis: Dict[str, Any]):
+        """Analyze X-Content-Type-Options header"""
+        xcto = headers.get('x-content-type-options')
+        if not xcto:
+            return
+        
+        analysis['detailed_analysis']['content_type_options'] = {
+            'header': xcto
+        }
+        
+        if xcto.lower() != 'nosniff':
+            analysis['weak_headers'].append('X-Content-Type-Options')
+            analysis['vulnerabilities'].append({
+                'type': 'weak_xcto',
+                'header': 'X-Content-Type-Options',
+                'severity': 'medium',
+                'description': f'X-Content-Type-Options should be "nosniff", got: {xcto}'
+            })
+            analysis['security_score'] -= 5
