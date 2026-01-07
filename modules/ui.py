@@ -16,4 +16,14 @@ from rich.layout import Layout
 init(autoreset=True)
 
 class ConsoleUI:
-    pass
+    def __init__(self):
+        self.console = Console()
+        self.colors = {
+            'info': Fore.CYAN,
+            'success': Fore.GREEN,
+            'warning': Fore.YELLOW,
+            'error': Fore.RED,
+            'critical': Fore.RED + Style.BRIGHT,
+            'header': Fore.BLUE + Style.BRIGHT,
+            'url': Fore.MAGENTA
+        }
