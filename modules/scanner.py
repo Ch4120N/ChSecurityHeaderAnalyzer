@@ -9,3 +9,7 @@ from urllib.parse import urlparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+
+
+class SecurityScanner:
+    pass
