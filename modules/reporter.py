@@ -7,12 +7,10 @@ import csv
 import os
 from typing import Dict, List, Any
 from datetime import datetime
+from collections import Counter
 
 import pandas as pd
 from jinja2 import Template
-
-
-
 
 class ReportGenerator:
     def __init__(self, config: Dict):
@@ -186,6 +184,26 @@ class ReportGenerator:
             f.write("-" * 60 + "\n")
             for rec in analysis['recommendations']:
                 f.write(f"• {rec}\n")
+            
+            # Additional sections if they exist
+            if analysis.get('cookie_analysis'):
+                f.write("\n" + "-" * 60 + "\n")
+                f.write("COOKIE ANALYSIS\n")
+                f.write("-" * 60 + "\n")
+                for i, cookie in enumerate(analysis['cookie_analysis'], 1):
+                    f.write(f"Cookie #{i}:\n")
+                    f.write(f"  Flags: {', '.join(f'{k}: {v}' for k, v in cookie.get('flags', {}).items())}\n")
+                    if cookie.get('issues'):
+                        f.write(f"  Issues: {', '.join(cookie['issues'])}\n")
+            
+            if analysis.get('cors_analysis'):
+                f.write("\n" + "-" * 60 + "\n")
+                f.write("CORS ANALYSIS\n")
+                f.write("-" * 60 + "\n")
+                cors = analysis['cors_analysis']
+                for key, value in cors.items():
+                    if key != 'issues' and value:
+                        f.write(f"{key}: {value}\n")
         
         return filepath
     
@@ -202,9 +220,6 @@ class ReportGenerator:
     def _generate_csv_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
         """Generate comprehensive CSV report"""
         filepath = os.path.join(self.output_dir, f"{filename_base}.csv")
-        
-        # Prepare data for CSV with multiple sheets (using pandas)
-        import pandas as pd
         
         # 1. Summary Sheet
         summary_data = {
@@ -563,8 +578,85 @@ class ReportGenerator:
                 ])
             writer.writerow([])
             
-            # 9. ACTION PLAN
-            writer.writerow(['SECTION 9: ACTION PLAN'])
+            # 9. COOKIE SECURITY ANALYSIS
+            writer.writerow(['SECTION 9: COOKIE SECURITY ANALYSIS'])
+            writer.writerow(['=' * 60])
+            if analysis.get('cookie_analysis'):
+                writer.writerow(['Cookie Count', 'Secure Cookies', 'HttpOnly Cookies', 'SameSite Cookies', 'Total Issues'])
+                writer.writerow(['-' * 60])
+                
+                secure_count = sum(1 for c in analysis['cookie_analysis'] if c.get('flags', {}).get('secure'))
+                httponly_count = sum(1 for c in analysis['cookie_analysis'] if c.get('flags', {}).get('httponly'))
+                samesite_count = sum(1 for c in analysis['cookie_analysis'] if 'samesite' in c.get('flags', {}))
+                issue_count = sum(len(c.get('issues', [])) for c in analysis['cookie_analysis'])
+                
+                writer.writerow([
+                    len(analysis['cookie_analysis']),
+                    secure_count,
+                    httponly_count,
+                    samesite_count,
+                    issue_count
+                ])
+                
+                # Detailed cookie analysis
+                if analysis['cookie_analysis']:
+                    writer.writerow([])
+                    writer.writerow(['DETAILED COOKIE ANALYSIS'])
+                    writer.writerow(['-' * 60])
+                    for i, cookie in enumerate(analysis['cookie_analysis'], 1):
+                        writer.writerow([f'Cookie #{i}:'])
+                        writer.writerow(['  Raw:', cookie.get('raw', '')[:100] + ('...' if len(cookie.get('raw', '')) > 100 else '')])
+                        writer.writerow(['  Flags:', ', '.join(f'{k}: {v}' for k, v in cookie.get('flags', {}).items())])
+                        if cookie.get('issues'):
+                            writer.writerow(['  Issues:', '; '.join(cookie['issues'])])
+            else:
+                writer.writerow(['No cookie headers found'])
+            writer.writerow([])
+            
+            # 10. CORS CONFIGURATION ANALYSIS
+            writer.writerow(['SECTION 10: CORS CONFIGURATION ANALYSIS'])
+            writer.writerow(['=' * 60])
+            if analysis.get('cors_analysis'):
+                cors = analysis['cors_analysis']
+                writer.writerow(['Setting', 'Value'])
+                writer.writerow(['-' * 60])
+                
+                for key in ['access_control_allow_origin', 'access_control_allow_credentials',
+                            'access_control_allow_methods', 'access_control_allow_headers',
+                            'access_control_expose_headers', 'access_control_max_age']:
+                    value = cors.get(key)
+                    if value:
+                        writer.writerow([key.replace('_', ' ').title(), value[:100] + ('...' if len(str(value)) > 100 else '')])
+                
+                if cors.get('issues'):
+                    writer.writerow([])
+                    writer.writerow(['CORS ISSUES:'])
+                    for issue in cors['issues']:
+                        writer.writerow([f'• {issue}'])
+            else:
+                writer.writerow(['No CORS headers configured'])
+            writer.writerow([])
+            
+            # 11. ADDITIONAL SECURITY CHECKS
+            writer.writerow(['SECTION 11: ADDITIONAL SECURITY CHECKS'])
+            writer.writerow(['=' * 60])
+            if analysis.get('additional_checks'):
+                writer.writerow(['Check', 'Result'])
+                writer.writerow(['-' * 60])
+                
+                for check_name, check_result in analysis['additional_checks'].items():
+                    if check_name == 'ssl_certificate':
+                        writer.writerow(['SSL Certificate', 'Valid' if check_result.get('valid') else f'Invalid: {check_result.get("error", "Unknown error")}'])
+                    elif check_name == 'server_banner':
+                        writer.writerow(['Server Banner', f'{check_result.get("value", "N/A")} ({check_result.get("disclosure", "unknown")} disclosure)'])
+                    else:
+                        writer.writerow([check_name.replace('_', ' ').title(), str(check_result)[:100] + ('...' if len(str(check_result)) > 100 else '')])
+            else:
+                writer.writerow(['No additional checks performed'])
+            writer.writerow([])
+            
+            # 12. ACTION PLAN
+            writer.writerow(['SECTION 12: ACTION PLAN'])
             writer.writerow(['=' * 60])
             
             # Immediate actions (High priority)
@@ -600,8 +692,8 @@ class ReportGenerator:
                     writer.writerow([f'• {action}'])
                 writer.writerow([])
             
-            # 10. SCAN METADATA
-            writer.writerow(['SECTION 10: SCAN METADATA'])
+            # 13. SCAN METADATA
+            writer.writerow(['SECTION 13: SCAN METADATA'])
             writer.writerow(['=' * 60])
             writer.writerow(['Field', 'Value'])
             writer.writerow(['-' * 60])
@@ -610,7 +702,7 @@ class ReportGenerator:
             writer.writerow(['Tool Owner', 'Ch4120N'])
             writer.writerow(['Generated On', datetime.now().isoformat()])
             writer.writerow(['Report Format', 'CSV'])
-            writer.writerow(['Total Sections', '10'])
+            writer.writerow(['Total Sections', '13'])
             writer.writerow(['Report File', filename_base + '.csv'])
             
             # Footer
@@ -1167,7 +1259,6 @@ class ReportGenerator:
                     all_vulnerabilities.append(vuln['description'])
             
             # Count frequency
-            from collections import Counter
             vuln_counter = Counter(all_vulnerabilities)
             
             if vuln_counter:
@@ -1547,4 +1638,3 @@ class ReportGenerator:
                 stats['common_missing_headers'][header] = stats['common_missing_headers'].get(header, 0) + 1
         
         return stats
-
