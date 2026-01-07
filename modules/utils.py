@@ -129,3 +129,17 @@ def sanitize_filename(filename: str) -> str:
         filename = filename[:255]
     
     return filename
+
+def get_timestamp() -> str:
+    """Get current timestamp string"""
+    from datetime import datetime
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+def create_directory(path: str) -> bool:
+    """Create directory if it doesn't exist"""
+    try:
+        Path(path).mkdir(parents=True, exist_ok=True)
+        return True
+    except Exception as e:
+        logging.error(f"Error creating directory {path}: {e}")
+        return False
