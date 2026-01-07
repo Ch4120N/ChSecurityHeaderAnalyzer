@@ -147,4 +147,26 @@ class ChSecurityHeaderAnalyzer:
         
         return None
     
+
+    def analyze_from_file(self, file_path: str, output_formats: List[str] = None,
+                         output_dir: str = None, threads: int = None) -> List[Dict[str, Any]]:
+        """Analyze websites from a file (one URL per line)"""
+        try:
+            with open(file_path, 'r') as f:
+                urls = [line.strip() for line in f if line.strip()]
+            
+            if not urls:
+                self.ui.print_error(f"No URLs found in {file_path}")
+                return []
+            
+            self.ui.print_info(f"Loaded {len(urls)} URLs from {file_path}")
+            return self.analyze_multiple(urls, output_formats, output_dir, threads)
+            
+        except FileNotFoundError:
+            self.ui.print_error(f"File not found: {file_path}")
+            return []
+        except Exception as e:
+            self.ui.print_error(f"Error reading file: {str(e)}")
+            return []
+    
     
