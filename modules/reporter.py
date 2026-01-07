@@ -141,7 +141,7 @@ class ReportGenerator:
     
 
     def _generate_txt_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
-        """Generate TXT report"""
+        """Generate TXT report with enhanced recommendations"""
         filepath = os.path.join(self.output_dir, f"{filename_base}.txt")
         
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -155,6 +155,14 @@ class ReportGenerator:
             f.write(f"Security Grade: {analysis['grade']}\n\n")
             
             f.write("-" * 60 + "\n")
+            f.write("SUMMARY\n")
+            f.write("-" * 60 + "\n")
+            f.write(f"Headers Analyzed: {len(analysis['headers_found'])}\n")
+            f.write(f"Missing Headers: {len(analysis['missing_headers'])}\n")
+            f.write(f"Vulnerabilities Found: {len(analysis['vulnerabilities'])}\n")
+            f.write(f"Recommendations: {len(analysis['recommendations'])}\n\n")
+            
+            f.write("-" * 60 + "\n")
             f.write("HEADERS FOUND\n")
             f.write("-" * 60 + "\n")
             for header, value in analysis['headers_found'].items():
@@ -164,55 +172,131 @@ class ReportGenerator:
             f.write("\n" + "-" * 60 + "\n")
             f.write("MISSING HEADERS\n")
             f.write("-" * 60 + "\n")
-            for header in analysis['missing_headers']:
-                f.write(f"✗ {header}\n")
-            
-            if not analysis['missing_headers']:
+            if analysis['missing_headers']:
+                for header in analysis['missing_headers']:
+                    f.write(f"✗ {header}\n")
+            else:
                 f.write("✓ All required headers present\n")
             
             f.write("\n" + "-" * 60 + "\n")
             f.write("VULNERABILITIES\n")
             f.write("-" * 60 + "\n")
-            for vuln in analysis['vulnerabilities']:
-                f.write(f"[{vuln['severity'].upper()}] {vuln['description']}\n")
-            
-            if not analysis['vulnerabilities']:
+            if analysis['vulnerabilities']:
+                for vuln in analysis['vulnerabilities']:
+                    f.write(f"[{vuln['severity'].upper()}] {vuln['description']}\n")
+            else:
                 f.write("✓ No vulnerabilities found\n")
             
             f.write("\n" + "-" * 60 + "\n")
-            f.write("RECOMMENDATIONS\n")
+            f.write("RECOMMENDATIONS ({len(analysis['recommendations'])})\n")
             f.write("-" * 60 + "\n")
-            for rec in analysis['recommendations']:
-                f.write(f"• {rec}\n")
             
-            # Additional sections if they exist
-            if analysis.get('cookie_analysis'):
+            if analysis['recommendations']:
+                # Categorize by priority
+                critical = [r for r in analysis['recommendations'] if 'CRITICAL:' in r]
+                high = [r for r in analysis['recommendations'] if 'HIGH PRIORITY:' in r or 'HIGH:' in r]
+                medium = [r for r in analysis['recommendations'] if 'MEDIUM PRIORITY:' in r or 'MEDIUM:' in r]
+                low = [r for r in analysis['recommendations'] if r not in critical + high + medium]
+                
+                if critical:
+                    f.write("\n[CRITICAL PRIORITY] - Immediate Action Required:\n")
+                    f.write("-" * 40 + "\n")
+                    for i, rec in enumerate(critical, 1):
+                        clean_rec = rec.replace('CRITICAL:', '').strip()
+                        f.write(f"{i}. {clean_rec}\n")
+                
+                if high:
+                    f.write("\n[HIGH PRIORITY] - Important Security Improvements:\n")
+                    f.write("-" * 40 + "\n")
+                    for i, rec in enumerate(high, 1):
+                        clean_rec = rec.replace('HIGH PRIORITY:', '').replace('HIGH:', '').strip()
+                        f.write(f"{i}. {clean_rec}\n")
+                
+                if medium:
+                    f.write("\n[MEDIUM PRIORITY] - Recommended Enhancements:\n")
+                    f.write("-" * 40 + "\n")
+                    for i, rec in enumerate(medium, 1):
+                        clean_rec = rec.replace('MEDIUM PRIORITY:', '').replace('MEDIUM:', '').strip()
+                        f.write(f"{i}. {clean_rec}\n")
+                
+                if low:
+                    f.write("\n[LOW PRIORITY] - Best Practices:\n")
+                    f.write("-" * 40 + "\n")
+                    for i, rec in enumerate(low, 1):
+                        f.write(f"{i}. {rec}\n")
+                
+                # Implementation summary
                 f.write("\n" + "-" * 60 + "\n")
-                f.write("COOKIE ANALYSIS\n")
+                f.write("IMPLEMENTATION SUMMARY\n")
                 f.write("-" * 60 + "\n")
-                for i, cookie in enumerate(analysis['cookie_analysis'], 1):
-                    f.write(f"Cookie #{i}:\n")
-                    f.write(f"  Flags: {', '.join(f'{k}: {v}' for k, v in cookie.get('flags', {}).items())}\n")
-                    if cookie.get('issues'):
-                        f.write(f"  Issues: {', '.join(cookie['issues'])}\n")
+                f.write(f"Total Recommendations: {len(analysis['recommendations'])}\n")
+                f.write(f"Priority Breakdown: {len(critical)} Critical, {len(high)} High, "
+                    f"{len(medium)} Medium, {len(low)} Low\n")
+                f.write(f"Estimated Time: {self._get_estimated_implementation_time(len(critical), len(high))}\n")
+            else:
+                f.write("✓ No recommendations needed - All configurations are optimal\n")
             
-            if analysis.get('cors_analysis'):
-                f.write("\n" + "-" * 60 + "\n")
-                f.write("CORS ANALYSIS\n")
-                f.write("-" * 60 + "\n")
-                cors = analysis['cors_analysis']
-                for key, value in cors.items():
-                    if key != 'issues' and value:
-                        f.write(f"{key}: {value}\n")
+            # Improvement summary
+            improvement = self._get_improvement_summary(analysis)
+            f.write("\n" + "-" * 60 + "\n")
+            f.write("IMPROVEMENT SUMMARY\n")
+            f.write("-" * 60 + "\n")
+            f.write(f"Current Score: {analysis['security_score']}/100 ({analysis['grade']})\n")
+            f.write(f"Potential Score: {improvement['potential_score']}/100\n")
+            f.write(f"Key Areas: {improvement['key_areas']}\n")
         
         return filepath
     
     def _generate_json_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
-        """Generate JSON report"""
+        """Generate JSON report with enhanced recommendations section"""
         filepath = os.path.join(self.output_dir, f"{filename_base}.json")
         
+        # Enhance the analysis with categorized recommendations
+        enhanced_analysis = analysis.copy()
+        
+        # Categorize recommendations
+        recommendations_categorized = {
+            'critical': [],
+            'high': [],
+            'medium': [],
+            'low': [],
+            'all': analysis['recommendations']
+        }
+        
+        for rec in analysis['recommendations']:
+            rec_lower = rec.lower()
+            if any(word in rec_lower for word in ['critical:', 'immediate', 'urgent']):
+                recommendations_categorized['critical'].append(rec)
+            elif any(word in rec_lower for word in ['high:', 'important', 'security risk']):
+                recommendations_categorized['high'].append(rec)
+            elif any(word in rec_lower for word in ['medium:', 'consider', 'recommended']):
+                recommendations_categorized['medium'].append(rec)
+            else:
+                recommendations_categorized['low'].append(rec)
+        
+        # Add categorized recommendations
+        enhanced_analysis['recommendations_categorized'] = recommendations_categorized
+        
+        # Add improvement summary
+        enhanced_analysis['improvement_summary'] = self._get_improvement_summary(analysis)
+        
+        # Add implementation estimate
+        enhanced_analysis['implementation_estimate'] = {
+            'time_estimate': self._get_estimated_implementation_time(
+                len(recommendations_categorized['critical']),
+                len(recommendations_categorized['high'])
+            ),
+            'total_recommendations': len(analysis['recommendations']),
+            'by_priority': {
+                'critical': len(recommendations_categorized['critical']),
+                'high': len(recommendations_categorized['high']),
+                'medium': len(recommendations_categorized['medium']),
+                'low': len(recommendations_categorized['low'])
+            }
+        }
+        
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(analysis, f, indent=2, default=str)
+            json.dump(enhanced_analysis, f, indent=2, default=str)
         
         return filepath
 
@@ -810,170 +894,198 @@ class ReportGenerator:
         # Prepare vulnerabilities rows
         vulnerabilities_rows = self._prepare_vulnerabilities_rows(analysis['vulnerabilities'])
         
-        # Prepare recommendations list
-        recommendations_list = self._prepare_recommendations_list(analysis['recommendations'])
+        # Prepare recommendations list with categorization
+        recommendations_list = self._prepare_recommendations_list_with_priority(analysis)
         
         # Prepare raw headers JSON
         raw_headers = {k: v for k, v in analysis['headers_found'].items() if not k.startswith('_')}
         
+        # Get improvement summary
+        improvement_summary = self._get_improvement_summary(analysis)
+        
         # HTML template (using the provided template)
         html_template = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ch4120N Security Header Analysis Report</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root{{--primary-color:#2c3e50;--secondary-color:#3498db;--success-color:#27ae60;--warning-color:#f39c12;--danger-color:#e74c3c;--dark-color:#2c3e50;--light-color:#ecf0f1;--gray-color:#95a5a6;--border-radius:10px;--box-shadow:0 4px 12px rgba(0, 0, 0, 0.1);--transition:all 0.3s ease}}
-        *{{margin:0;padding:0;box-sizing:border-box}}
-        body{{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#333;background:linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%);min-height:100vh;padding:20px}}
-        .container{{max-width:1200px;margin:0 auto}}
-        .header{{background:linear-gradient(135deg,var(--primary-color) 0%,#1a252f 100%);color:#fff;padding:30px;border-radius:var(--border-radius);margin-bottom:30px;box-shadow:var(--box-shadow);position:relative;overflow:hidden}}
-        .header::before{{content:'';position:absolute;top:-50%;right:-50%;width:200px;height:200px;background:rgb(255 255 255 / .05);border-radius:50%}}
-        .header h1{{font-size:2.5rem;margin-bottom:10px;display:flex;align-items:center;gap:15px}}
-        .header h1 i{{color:var(--secondary-color)}}
-        .header p{{font-size:1.1rem;opacity:.9}}
-        .summary-cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:30px}}
-        .card{{background:#fff;border-radius:var(--border-radius);padding:25px;box-shadow:var(--box-shadow);transition:var(--transition)}}
-        .card:hover{{transform:translateY(-5px);box-shadow:0 8px 20px rgb(0 0 0 / .15)}}
-        .card h3{{color:var(--primary-color);margin-bottom:15px;font-size:1.3rem;border-bottom:2px solid var(--light-color);padding-bottom:10px;display:flex;align-items:center;gap:10px}}
-        .score-card{{text-align:center;background:linear-gradient(135deg,#fff 0%,#f8f9fa 100%)}}
-        .score{{font-size:4rem;font-weight:800;margin:20px 0}}
-        .grade{{display:inline-block;padding:8px 25px;border-radius:50px;font-weight:700;font-size:1.5rem;letter-spacing:1px}}
-        .grade-a{{background-color:#d5f4e6;color:var(--success-color)}}
-        .grade-b{{background-color:#fff3cd;color:#e6a700}}
-        .grade-c{{background-color:#ffeaa7;color:#e67e22}}
-        .grade-d{{background-color:#fadbd8;color:#e74c3c}}
-        .grade-f{{background-color:var(--danger-color);color:#fff}}
-        .section{{background:#fff;border-radius:var(--border-radius);padding:30px;margin-bottom:30px;box-shadow:var(--box-shadow)}}
-        .section h2{{color:var(--primary-color);margin-bottom:25px;font-size:1.8rem;border-left:5px solid var(--secondary-color);padding-left:15px;display:flex;align-items:center;gap:12px}}
-        table{{width:100%;border-collapse:collapse;margin:15px 0;border-radius:var(--border-radius);overflow:hidden;box-shadow:0 2px 8px rgb(0 0 0 / .05)}}
-        th{{background-color:var(--primary-color);color:#fff;font-weight:600;padding:18px 15px;text-align:left}}
-        td{{padding:16px 15px;border-bottom:1px solid #eee}}
-        tr:hover{{background-color:#f9f9f9}}
-        .present,.missing{{font-weight:600;display:inline-flex;align-items:center;gap:8px;padding:6px 15px;border-radius:50px}}
-        .present{{background-color:#d5f4e6;color:var(--success-color)}}
-        .missing{{background-color:#fadbd8;color:var(--danger-color)}}
-        .vuln-high,.vuln-medium,.vuln-low,.vuln-critical{{font-weight:700;display:inline-block;padding:6px 15px;border-radius:50px;text-align:center;min-width:100px}}
-        .vuln-critical{{background-color:#f44;color:#fff}}
-        .vuln-high{{background-color:#fadbd8;color:var(--danger-color)}}
-        .vuln-medium{{background-color:#ffeaa7;color:#e67e22}}
-        .vuln-low{{background-color:#fff3cd;color:#f39c12}}
-        ul{{padding-left:20px}}
-        li{{margin-bottom:12px;padding-left:10px;position:relative}}
-        li:before{{content:'→';position:absolute;left:-15px;color:var(--secondary-color);font-weight:700}}
-        pre{{background-color:#2c3e50;color:#ecf0f1;padding:20px;border-radius:var(--border-radius);overflow-x:auto;font-family:'Courier New',monospace;font-size:.9rem;line-height:1.5;margin-top:15px;box-shadow:inset 0 2px 10px rgb(0 0 0 / .3)}}
-        .status-badge{{display:flex;align-items:center;gap:10px}}
-        .footer{{text-align:center;margin-top:40px;padding:20px;color:var(--gray-color);font-size:.9rem;border-top:1px solid #eee}}
-        .recommendation-list li{{background:#f8f9fa;padding:15px;border-radius:8px;margin-bottom:10px;border-left:4px solid var(--secondary-color)}}
-        @media (max-width:768px){{.header h1{{font-size:2rem}}.summary-cards{{grid-template-columns:1fr}}.score{{font-size:3rem}}table{{display:block;overflow-x:auto}}.section{{padding:20px}}}}
-        @keyframes pulse{{0%{{transform:scale(1)}}50%{{transform:scale(1.05)}}100%{{transform:scale(1)}}}}
-        .grade-f{{animation:pulse 2s infinite}}
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Ch4120N Security Header Analysis Report</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        <style>
+            :root{{--primary-color:#2c3e50;--secondary-color:#3498db;--success-color:#27ae60;--warning-color:#f39c12;--danger-color:#e74c3c;--dark-color:#2c3e50;--light-color:#ecf0f1;--gray-color:#95a5a6;--border-radius:10px;--box-shadow:0 4px 12px rgba(0, 0, 0, 0.1);--transition:all 0.3s ease}}
+            *{{margin:0;padding:0;box-sizing:border-box}}
+            body{{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;line-height:1.6;color:#333;background:linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%);min-height:100vh;padding:20px}}
+            .container{{max-width:1200px;margin:0 auto}}
+            .header{{background:linear-gradient(135deg,var(--primary-color) 0%,#1a252f 100%);color:#fff;padding:30px;border-radius:var(--border-radius);margin-bottom:30px;box-shadow:var(--box-shadow);position:relative;overflow:hidden}}
+            .header::before{{content:'';position:absolute;top:-50%;right:-50%;width:200px;height:200px;background:rgb(255 255 255 / .05);border-radius:50%}}
+            .header h1{{font-size:2.5rem;margin-bottom:10px;display:flex;align-items:center;gap:15px}}
+            .header h1 i{{color:var(--secondary-color)}}
+            .header p{{font-size:1.1rem;opacity:.9}}
+            .summary-cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;margin-bottom:30px}}
+            .card{{background:#fff;border-radius:var(--border-radius);padding:25px;box-shadow:var(--box-shadow);transition:var(--transition)}}
+            .card:hover{{transform:translateY(-5px);box-shadow:0 8px 20px rgb(0 0 0 / .15)}}
+            .card h3{{color:var(--primary-color);margin-bottom:15px;font-size:1.3rem;border-bottom:2px solid var(--light-color);padding-bottom:10px;display:flex;align-items:center;gap:10px}}
+            .score-card{{text-align:center;background:linear-gradient(135deg,#fff 0%,#f8f9fa 100%)}}
+            .score{{font-size:4rem;font-weight:800;margin:20px 0}}
+            .grade{{display:inline-block;padding:8px 25px;border-radius:50px;font-weight:700;font-size:1.5rem;letter-spacing:1px}}
+            .grade-a{{background-color:#d5f4e6;color:var(--success-color)}}
+            .grade-b{{background-color:#fff3cd;color:#e6a700}}
+            .grade-c{{background-color:#ffeaa7;color:#e67e22}}
+            .grade-d{{background-color:#fadbd8;color:#e74c3c}}
+            .grade-f{{background-color:var(--danger-color);color:#fff}}
+            .section{{background:#fff;border-radius:var(--border-radius);padding:30px;margin-bottom:30px;box-shadow:var(--box-shadow)}}
+            .section h2{{color:var(--primary-color);margin-bottom:25px;font-size:1.8rem;border-left:5px solid var(--secondary-color);padding-left:15px;display:flex;align-items:center;gap:12px}}
+            table{{width:100%;border-collapse:collapse;margin:15px 0;border-radius:var(--border-radius);overflow:hidden;box-shadow:0 2px 8px rgb(0 0 0 / .05)}}
+            th{{background-color:var(--primary-color);color:#fff;font-weight:600;padding:18px 15px;text-align:left}}
+            td{{padding:16px 15px;border-bottom:1px solid #eee}}
+            tr:hover{{background-color:#f9f9f9}}
+            .present,.missing{{font-weight:600;display:inline-flex;align-items:center;gap:8px;padding:6px 15px;border-radius:50px}}
+            .present{{background-color:#d5f4e6;color:var(--success-color)}}
+            .missing{{background-color:#fadbd8;color:var(--danger-color)}}
+            .vuln-high,.vuln-medium,.vuln-low,.vuln-critical{{font-weight:700;display:inline-block;padding:6px 15px;border-radius:50px;text-align:center;min-width:100px}}
+            .vuln-critical{{background-color:#f44;color:#fff}}
+            .vuln-high{{background-color:#fadbd8;color:var(--danger-color)}}
+            .vuln-medium{{background-color:#ffeaa7;color:#e67e22}}
+            .vuln-low{{background-color:#fff3cd;color:#f39c12}}
+            ul{{padding-left:20px}}
+            li{{margin-bottom:12px;padding-left:10px;position:relative}}
+            li:before{{content:'→';position:absolute;left:-15px;color:var(--secondary-color);font-weight:700}}
+            pre{{background-color:#2c3e50;color:#ecf0f1;padding:20px;border-radius:var(--border-radius);overflow-x:auto;font-family:'Courier New',monospace;font-size:.9rem;line-height:1.5;margin-top:15px;box-shadow:inset 0 2px 10px rgb(0 0 0 / .3)}}
+            .status-badge{{display:flex;align-items:center;gap:10px}}
+            .footer{{text-align:center;margin-top:40px;padding:20px;color:var(--gray-color);font-size:.9rem;border-top:1px solid #eee}}
+            .recommendation-list li{{background:#f8f9fa;padding:15px;border-radius:8px;margin-bottom:10px;border-left:4px solid var(--secondary-color)}}
+            .priority-critical{{border-left-color:#e74c3c;background:#fdf2f2}}
+            .priority-high{{border-left-color:#f39c12;background:#fff8e6}}
+            .priority-medium{{border-left-color:#3498db;background:#f0f8ff}}
+            .priority-low{{border-left-color:#27ae60;background:#f2f9f5}}
+            .priority-badge{{display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;margin-right:10px}}
+            .badge-critical{{background:#e74c3c;color:white}}
+            .badge-high{{background:#f39c12;color:white}}
+            .badge-medium{{background:#3498db;color:white}}
+            .badge-low{{background:#27ae60;color:white}}
+            .improvement-summary{{background:linear-gradient(135deg,#f8f9fa 0%,#e9ecef 100%);padding:20px;border-radius:8px;margin:20px 0}}
+            @media (max-width:768px){{.header h1{{font-size:2rem}}.summary-cards{{grid-template-columns:1fr}}.score{{font-size:3rem}}table{{display:block;overflow-x:auto}}.section{{padding:20px}}}}
+            @keyframes pulse{{0%{{transform:scale(1)}}50%{{transform:scale(1.05)}}100%{{transform:scale(1)}}}}
+            .grade-f{{animation:pulse 2s infinite}}
 
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-shield-alt"></i> Ch4120N Security Header Analysis Report</h1>
-            <p><i class="far fa-calendar-alt"></i> Generated: {analysis['scan_date']}</p>
-        </div>
-        
-        <div class="summary-cards">
-            <div class="card score-card">
-                <h3><i class="fas fa-chart-line"></i> Security Score</h3>
-                <div class="score">{analysis['security_score']}/100</div>
-                <div class="grade {grade_class}">{grade_display}</div>
-                <p style="margin-top: 15px; color: var(--gray-color);">{self._get_security_advice(analysis['security_score'])}</p>
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1><i class="fas fa-shield-alt"></i> Ch4120N Security Header Analysis Report</h1>
+                <p><i class="far fa-calendar-alt"></i> Generated: {analysis['scan_date']}</p>
             </div>
             
-            <div class="card">
-                <h3><i class="fas fa-globe"></i> Target URL</h3>
-                <p style="font-size: 1.2rem; word-break: break-all;"><i class="fas fa-link"></i> {analysis['url']}</p>
-                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                    <p><strong>Headers Analyzed:</strong> {len(analysis['headers_found'])}</p>
-                    <p><strong>Vulnerabilities Found:</strong> {total_vulnerabilities}</p>
-                    <p><strong>Missing Headers:</strong> {len(analysis['missing_headers'])}</p>
+            <div class="summary-cards">
+                <div class="card score-card">
+                    <h3><i class="fas fa-chart-line"></i> Security Score</h3>
+                    <div class="score">{analysis['security_score']}/100</div>
+                    <div class="grade {grade_class}">{grade_display}</div>
+                    <p style="margin-top: 15px; color: var(--gray-color);">{self._get_security_advice(analysis['security_score'])}</p>
+                </div>
+                
+                <div class="card">
+                    <h3><i class="fas fa-globe"></i> Target URL</h3>
+                    <p style="font-size: 1.2rem; word-break: break-all;"><i class="fas fa-link"></i> {analysis['url']}</p>
+                    <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                        <p><strong>Headers Analyzed:</strong> {len(analysis['headers_found'])}</p>
+                        <p><strong>Vulnerabilities Found:</strong> {total_vulnerabilities}</p>
+                        <p><strong>Missing Headers:</strong> {len(analysis['missing_headers'])}</p>
+                        <p><strong>Recommendations:</strong> {len(analysis['recommendations'])}</p>
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="section">
-            <h2><i class="fas fa-search"></i> Headers Analysis</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Security Header</th>
-                        <th>Status</th>
-                        <th>Value / Issue</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {headers_rows}
-                </tbody>
-            </table>
-        </div>
-        
-        {self._get_vulnerabilities_section(analysis['vulnerabilities'])}
-        
-        <div class="section">
-            <h2><i class="fas fa-lightbulb"></i> Recommendations</h2>
-            <div class="recommendation-list">
-                <ul>
+            
+            <div class="section">
+                <h2><i class="fas fa-search"></i> Headers Analysis</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Security Header</th>
+                            <th>Status</th>
+                            <th>Value / Issue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {headers_rows}
+                    </tbody>
+                </table>
+            </div>
+            
+            {self._get_vulnerabilities_section(analysis['vulnerabilities'])}
+            
+            <div class="improvement-summary">
+                <h3 style="color: var(--primary-color); margin-bottom: 15px;"><i class="fas fa-rocket"></i> Improvement Summary</h3>
+                <p style="margin-bottom: 10px;"><strong>Current Score:</strong> {analysis['security_score']}/100 (<span class="grade {grade_class}" style="padding: 3px 10px; font-size: 0.9rem;">{grade_display}</span>)</p>
+                <p style="margin-bottom: 10px;"><strong>Potential Improvement:</strong> {improvement_summary['potential_score']}/100</p>
+                <p><strong>Key Areas for Improvement:</strong> {improvement_summary['key_areas']}</p>
+            </div>
+            
+            <div class="section">
+                <h2><i class="fas fa-lightbulb"></i> Recommendations ({len(analysis['recommendations'])})</h2>
+                <div class="recommendation-list">
                     {recommendations_list}
-                </ul>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2><i class="fas fa-code"></i> Raw Headers</h2>
+                <pre>{json.dumps(raw_headers, indent=2, default=str)}</pre>
+            </div>
+            
+            <div class="footer">
+                <p><i class="fas fa-info-circle"></i> Report generated by Ch4120N Security Header Analyzer</p>
+                <p>This report highlights security vulnerabilities that should be addressed immediately.</p>
             </div>
         </div>
         
-        <div class="section">
-            <h2><i class="fas fa-code"></i> Raw Headers</h2>
-            <pre>{json.dumps(raw_headers, indent=2, default=str)}</pre>
-        </div>
+        <script>
+            // Simple script to add interactivity
+            document.addEventListener('DOMContentLoaded', function() {{
+                // Add click effect to cards
+                const cards = document.querySelectorAll('.card');
+                cards.forEach(card => {{
+                    card.addEventListener('click', function() {{
+                        this.style.transform = 'translateY(-5px)';
+                        setTimeout(() => {{
+                            this.style.transform = '';
+                        }}, 200);
+                    }});
+                }});
+                
+                // Highlight vulnerabilities on hover
+                const vulnRows = document.querySelectorAll('tbody tr');
+                vulnRows.forEach(row => {{
+                    row.addEventListener('mouseenter', function() {{
+                        this.style.backgroundColor = '#fff9e6';
+                    }});
+                    row.addEventListener('mouseleave', function() {{
+                        this.style.backgroundColor = '';
+                    }});
+                }});
+                
+                // Add timestamp update (demo)
+                const timestamp = document.querySelector('.header p');
+                if (timestamp) {{
+                    const now = new Date();
+                    const formatted = now.toISOString().replace('T', ' ').substring(0, 19);
+                    timestamp.innerHTML = `<i class="far fa-calendar-alt"></i> Generated: ${{formatted}}`;
+                }}
+                
+                // Expand/collapse recommendations
+                const recommendations = document.querySelectorAll('.recommendation-list li');
+                recommendations.forEach(rec => {{
+                    rec.style.cursor = 'pointer';
+                    rec.addEventListener('click', function() {{
+                        this.style.backgroundColor = this.style.backgroundColor === 'rgb(255, 249, 230)' ? '' : '#fff9e6';
+                    }});
+                }});
+            }});
+        </script>
+    </body>
+    </html>"""
         
-        <div class="footer">
-            <p><i class="fas fa-info-circle"></i> Report generated by Ch4120N Security Header Analyzer</p>
-            <p>This report highlights security vulnerabilities that should be addressed immediately.</p>
-        </div>
-    </div>
-    
-    <script>
-        // Simple script to add interactivity
-        document.addEventListener('DOMContentLoaded', function() {{
-            // Add click effect to cards
-            const cards = document.querySelectorAll('.card');
-            cards.forEach(card => {{
-                card.addEventListener('click', function() {{
-                    this.style.transform = 'translateY(-5px)';
-                    setTimeout(() => {{
-                        this.style.transform = '';
-                    }}, 200);
-                }});
-            }});
-            
-            // Highlight vulnerabilities on hover
-            const vulnRows = document.querySelectorAll('tbody tr');
-            vulnRows.forEach(row => {{
-                row.addEventListener('mouseenter', function() {{
-                    this.style.backgroundColor = '#fff9e6';
-                }});
-                row.addEventListener('mouseleave', function() {{
-                    this.style.backgroundColor = '';
-                }});
-            }});
-            
-            // Add timestamp update (demo)
-            const timestamp = document.querySelector('.header p');
-            if (timestamp) {{
-                const now = new Date();
-                const formatted = now.toISOString().replace('T', ' ').substring(0, 19);
-                timestamp.innerHTML = `<i class="far fa-calendar-alt"></i> Generated: ${{formatted}}`;
-            }}
-        }});
-    </script>
-</body>
-</html>"""
-    
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(html_template)
         
@@ -1072,6 +1184,134 @@ class ReportGenerator:
             </div>
             """
 
+    def _prepare_recommendations_list_with_priority(self, analysis: Dict[str, Any]) -> str:
+        """Prepare HTML list for recommendations with priority levels"""
+        if not analysis.get('recommendations'):
+            return '<li class="priority-low">No recommendations. All security headers are properly configured.</li>'
+        
+        items = []
+        
+        # Categorize recommendations by priority
+        critical_recs = []
+        high_recs = []
+        medium_recs = []
+        low_recs = []
+        
+        for rec in analysis['recommendations']:
+            rec_lower = rec.lower()
+            if any(word in rec_lower for word in ['critical:', 'immediate', 'urgent']):
+                critical_recs.append(rec)
+            elif any(word in rec_lower for word in ['high:', 'important', 'security risk']):
+                high_recs.append(rec)
+            elif any(word in rec_lower for word in ['medium:', 'consider', 'recommended']):
+                medium_recs.append(rec)
+            else:
+                low_recs.append(rec)
+        
+        # Add critical recommendations
+        if critical_recs:
+            items.append('<h3 style="color: var(--danger-color); margin-top: 20px;"><i class="fas fa-exclamation-triangle"></i> Critical Priority</h3>')
+            for rec in critical_recs:
+                # Clean up the priority prefix for display
+                clean_rec = rec.replace('CRITICAL:', '').replace('CRITICAL :', '').strip()
+                items.append(f'''
+                    <li class="priority-critical">
+                        <span class="priority-badge badge-critical">CRITICAL</span>
+                        {clean_rec}
+                    </li>
+                ''')
+        
+        # Add high priority recommendations
+        if high_recs:
+            items.append('<h3 style="color: var(--warning-color); margin-top: 20px;"><i class="fas fa-exclamation-circle"></i> High Priority</h3>')
+            for rec in high_recs:
+                clean_rec = rec.replace('HIGH PRIORITY:', '').replace('HIGH:', '').strip()
+                items.append(f'''
+                    <li class="priority-high">
+                        <span class="priority-badge badge-high">HIGH</span>
+                        {clean_rec}
+                    </li>
+                ''')
+        
+        # Add medium priority recommendations
+        if medium_recs:
+            items.append('<h3 style="color: var(--secondary-color); margin-top: 20px;"><i class="fas fa-info-circle"></i> Medium Priority</h3>')
+            for rec in medium_recs:
+                clean_rec = rec.replace('MEDIUM PRIORITY:', '').replace('MEDIUM:', '').strip()
+                items.append(f'''
+                    <li class="priority-medium">
+                        <span class="priority-badge badge-medium">MEDIUM</span>
+                        {clean_rec}
+                    </li>
+                ''')
+        
+        # Add low priority recommendations
+        if low_recs:
+            items.append('<h3 style="color: var(--success-color); margin-top: 20px;"><i class="fas fa-check-circle"></i> Low Priority</h3>')
+            for rec in low_recs:
+                items.append(f'''
+                    <li class="priority-low">
+                        <span class="priority-badge badge-low">LOW</span>
+                        {rec}
+                    </li>
+                ''')
+        
+        # Add implementation summary
+        if items:
+            items.append(f'''
+                <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <h4 style="color: var(--primary-color); margin-bottom: 10px;"><i class="fas fa-clipboard-check"></i> Implementation Summary</h4>
+                    <p><strong>Total Recommendations:</strong> {len(analysis['recommendations'])}</p>
+                    <p><strong>Priority Breakdown:</strong> {len(critical_recs)} Critical, {len(high_recs)} High, {len(medium_recs)} Medium, {len(low_recs)} Low</p>
+                    <p><strong>Estimated Time:</strong> {self._get_estimated_implementation_time(len(critical_recs), len(high_recs))}</p>
+                </div>
+            ''')
+        
+        return '\n'.join(items)
+
+    def _get_improvement_summary(self, analysis: Dict[str, Any]) -> Dict[str, str]:
+        """Get improvement summary for the report"""
+        missing_count = len(analysis.get('missing_headers', []))
+        vuln_count = len(analysis.get('vulnerabilities', []))
+        
+        # Calculate potential score if all issues were fixed
+        potential_score = min(100, analysis['security_score'] + (missing_count * 5) + (vuln_count * 3))
+        
+        # Identify key areas for improvement
+        key_areas = []
+        if missing_count > 0:
+            key_areas.append(f"Add {missing_count} missing security headers")
+        if vuln_count > 0:
+            key_areas.append(f"Fix {vuln_count} vulnerabilities")
+        
+        if analysis.get('weak_headers'):
+            key_areas.append("Strengthen weak header configurations")
+        
+        if analysis.get('cookie_analysis'):
+            insecure_cookies = sum(1 for c in analysis['cookie_analysis'] if c.get('issues'))
+            if insecure_cookies > 0:
+                key_areas.append(f"Secure {insecure_cookies} cookies")
+        
+        if not key_areas:
+            key_areas = ["No significant improvements needed"]
+        
+        return {
+            'potential_score': potential_score,
+            'key_areas': ', '.join(key_areas[:3]) + ('...' if len(key_areas) > 3 else '')
+        }
+
+    def _get_estimated_implementation_time(self, critical_count: int, high_count: int) -> str:
+        """Get estimated implementation time for recommendations"""
+        total_time = (critical_count * 2) + (high_count * 4)  # hours
+        if total_time <= 4:
+            return "2-4 hours"
+        elif total_time <= 8:
+            return "1 business day"
+        elif total_time <= 16:
+            return "2-3 business days"
+        else:
+            return "1 week or more"
+        
     def _prepare_recommendations_list(self, recommendations: List[str]) -> str:
         """Prepare HTML list for recommendations"""
         if not recommendations:
