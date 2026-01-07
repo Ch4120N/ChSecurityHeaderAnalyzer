@@ -151,3 +151,12 @@ def bytes_to_human_readable(size_bytes: int) -> str:
             return f"{size_bytes:.2f} {unit}"
         size_bytes /= 1024.0
     return f"{size_bytes:.2f} PB"
+
+def is_valid_ip(address: str) -> bool:
+    """Check if string is a valid IP address"""
+    import ipaddress
+    try:
+        ipaddress.ip_address(address)
+        return True
+    except ValueError:
+        return False
