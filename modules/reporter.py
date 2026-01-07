@@ -357,4 +357,129 @@ class ReportGenerator:
         
         return filepath
 
-    
+    def _generate_combined_html(self, analyses: List[Dict[str, Any]], filename_base: str) -> str:
+        """Generate combined HTML report"""
+        filepath = os.path.join(self.output_dir, f"{filename_base}.html")
+        
+        # Statistics
+        stats = self._calculate_statistics(analyses)
+        
+        # HTML template for combined report
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Combined Security Header Analysis Report</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                .header { background: #2c3e50; color: white; padding: 20px; border-radius: 5px; }
+                .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 30px 0; }
+                .stat-card { background: #f8f9fa; padding: 20px; border-radius: 5px; text-align: center; }
+                .stat-value { font-size: 2em; font-weight: bold; }
+                table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+                th { background-color: #2c3e50; color: white; }
+                tr:hover { background-color: #f5f5f5; }
+                .grade-a { background-color: #d4edda; }
+                .grade-b { background-color: #fff3cd; }
+                .grade-c { background-color: #ffeaa7; }
+                .grade-d { background-color: #f8d7da; }
+                .grade-f { background-color: #f5c6cb; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Combined Security Header Analysis Report</h1>
+                <p>Generated: {{ report_date }}</p>
+                <p>Total Websites Analyzed: {{ total_websites }}</p>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value">{{ average_score|round(1) }}</div>
+                    <div>Average Score</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ grade_distribution.A|default(0) }}</div>
+                    <div>Grade A</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ grade_distribution.B|default(0) }}</div>
+                    <div>Grade B</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ grade_distribution.C|default(0) }}</div>
+                    <div>Grade C</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ grade_distribution.D|default(0) }}</div>
+                    <div>Grade D</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ grade_distribution.F|default(0) }}</div>
+                    <div>Grade F</div>
+                </div>
+            </div>
+            
+            <h2>Detailed Results</h2>
+            <table>
+                <tr>
+                    <th>URL</th>
+                    <th>Score</th>
+                    <th>Grade</th>
+                    <th>Missing Headers</th>
+                    <th>Vulnerabilities</th>
+                </tr>
+                {% for analysis in analyses %}
+                <tr class="grade-{{ analysis.grade.lower() }}">
+                    <td><a href="#{{ loop.index }}">{{ analysis.url[:50] }}{% if analysis.url|length > 50 %}...{% endif %}</a></td>
+                    <td>{{ analysis.security_score }}</td>
+                    <td>{{ analysis.grade }}</td>
+                    <td>{{ analysis.missing_headers|length }}</td>
+                    <td>{{ analysis.vulnerabilities|length }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+            
+            <h2>Individual Reports</h2>
+            {% for analysis in analyses %}
+            <div id="{{ loop.index }}" style="margin: 40px 0; padding: 20px; border: 1px solid #ddd;">
+                <h3>{{ analysis.url }}</h3>
+                <p><strong>Score:</strong> {{ analysis.security_score }} | <strong>Grade:</strong> {{ analysis.grade }}</p>
+                <p><strong>Missing Headers:</strong> {{ analysis.missing_headers|join(', ') or 'None' }}</p>
+                {% if analysis.vulnerabilities %}
+                <p><strong>Vulnerabilities:</strong></p>
+                <ul>
+                    {% for vuln in analysis.vulnerabilities[:3] %}
+                    <li>[{{ vuln.severity|upper }}] {{ vuln.description }}</li>
+                    {% endfor %}
+                    {% if analysis.vulnerabilities|length > 3 %}
+                    <li>... and {{ analysis.vulnerabilities|length - 3 }} more</li>
+                    {% endif %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </body>
+        </html>
+        """
+        
+        # Prepare context
+        context = {
+            'report_date': datetime.now().isoformat(),
+            'total_websites': len(analyses),
+            'analyses': analyses,
+            'average_score': stats['average_score'],
+            'grade_distribution': stats['grade_distribution']
+        }
+        
+        # Render template
+        template = Template(html_template)
+        html_content = template.render(**context)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        return filepath
+
