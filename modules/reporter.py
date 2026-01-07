@@ -19,3 +19,26 @@ class ReportGenerator:
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
 
+    def generate_reports(self, analysis: Dict[str, Any], url: str, 
+                        formats: List[str]) -> Dict[str, str]:
+        """Generate reports in specified formats"""
+        report_paths = {}
+        
+        # Sanitize filename from URL
+        filename_base = self._sanitize_filename(url)
+        
+        for fmt in formats:
+            if fmt == 'txt':
+                path = self._generate_txt_report(analysis, filename_base)
+                report_paths['txt'] = path
+            elif fmt == 'json':
+                path = self._generate_json_report(analysis, filename_base)
+                report_paths['json'] = path
+            elif fmt == 'csv':
+                path = self._generate_csv_report(analysis, filename_base)
+                report_paths['csv'] = path
+            elif fmt == 'html':
+                path = self._generate_html_report(analysis, filename_base)
+                report_paths['html'] = path
+        
+        return report_paths
