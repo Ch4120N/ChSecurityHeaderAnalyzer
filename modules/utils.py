@@ -28,3 +28,29 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
     )
     
     return logging.getLogger(__name__)
+
+def load_config(config_path: str = None) -> Dict[str, Any]:
+    """Load configuration from YAML file"""
+    if config_path is None:
+        # Try to find config file in various locations
+        possible_paths = [
+            Path("config/config.yaml"),
+            Path("/etc/chSecurityHeaderAnalyzer/config.yaml"),
+            Path.home() / ".chSecurityHeaderAnalyzer/config.yaml"
+        ]
+        
+        for path in possible_paths:
+            if path.exists():
+                config_path = str(path)
+                break
+        else:
+            # Use default config
+            return get_default_config()
+    
+    try:
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        return config
+    except Exception as e:
+        logging.error(f"Error loading config from {config_path}: {e}")
+        return get_default_config()
