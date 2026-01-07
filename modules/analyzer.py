@@ -108,3 +108,52 @@ class HeaderAnalyzer:
         # Check for preload
         if 'preload' in hsts.lower():
             analysis['detailed_analysis']['hsts']['preload'] = True
+
+    def _analyze_csp(self, headers: Dict[str, str], analysis: Dict[str, Any]):
+        """Analyze Content Security Policy header"""
+        csp = headers.get('content-security-policy')
+        if not csp:
+            return
+        
+        analysis['detailed_analysis']['csp'] = {
+            'header': csp,
+            'has_unsafe_inline': False,
+            'has_unsafe_eval': False,
+            'uses_https': True
+        }
+        
+        csp_lower = csp.lower()
+        
+        # Check for unsafe directives
+        if 'unsafe-inline' in csp_lower:
+            analysis['detailed_analysis']['csp']['has_unsafe_inline'] = True
+            analysis['weak_headers'].append('Content-Security-Policy')
+            analysis['vulnerabilities'].append({
+                'type': 'weak_csp',
+                'header': 'Content-Security-Policy',
+                'severity': 'medium',
+                'description': 'CSP contains unsafe-inline directive'
+            })
+            analysis['security_score'] -= 5
+        
+        if 'unsafe-eval' in csp_lower:
+            analysis['detailed_analysis']['csp']['has_unsafe_eval'] = True
+            analysis['weak_headers'].append('Content-Security-Policy')
+            analysis['vulnerabilities'].append({
+                'type': 'weak_csp',
+                'header': 'Content-Security-Policy',
+                'severity': 'medium',
+                'description': 'CSP contains unsafe-eval directive'
+            })
+            analysis['security_score'] -= 5
+        
+        # Check if HTTPS is enforced
+        if 'http:' in csp and not self.config['vulnerabilities']['weak_configurations']['csp']['https_required']:
+            analysis['detailed_analysis']['csp']['uses_https'] = False
+            analysis['vulnerabilities'].append({
+                'type': 'weak_csp',
+                'header': 'Content-Security-Policy',
+                'severity': 'high',
+                'description': 'CSP allows HTTP sources'
+            })
+            analysis['security_score'] -= 10
