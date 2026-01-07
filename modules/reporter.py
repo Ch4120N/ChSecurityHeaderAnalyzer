@@ -483,3 +483,27 @@ class ReportGenerator:
         
         return filepath
 
+    def _calculate_statistics(self, analyses: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Calculate statistics from multiple analyses"""
+        if not analyses:
+            return {}
+        
+        stats = {
+            'average_score': sum(a['security_score'] for a in analyses) / len(analyses),
+            'grade_distribution': {},
+            'common_missing_headers': {},
+            'total_vulnerabilities': sum(len(a['vulnerabilities']) for a in analyses)
+        }
+        
+        # Grade distribution
+        for analysis in analyses:
+            grade = analysis['grade']
+            stats['grade_distribution'][grade] = stats['grade_distribution'].get(grade, 0) + 1
+        
+        # Common missing headers
+        for analysis in analyses:
+            for header in analysis['missing_headers']:
+                stats['common_missing_headers'][header] = stats['common_missing_headers'].get(header, 0) + 1
+        
+        return stats
+
