@@ -42,3 +42,32 @@ class ReportGenerator:
                 report_paths['html'] = path
         
         return report_paths
+    
+    def generate_combined_report(self, analyses: List[Dict[str, Any]], 
+                               formats: List[str], output_dir: str = None) -> Dict[str, str]:
+        """Generate combined report for multiple analyses"""
+        if output_dir:
+            self.output_dir = output_dir
+            os.makedirs(self.output_dir, exist_ok=True)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename_base = f"combined_report_{timestamp}"
+        
+        report_paths = {}
+        
+        for fmt in formats:
+            if fmt == 'txt':
+                path = self._generate_combined_txt(analyses, filename_base)
+                report_paths['txt'] = path
+            elif fmt == 'json':
+                path = self._generate_combined_json(analyses, filename_base)
+                report_paths['json'] = path
+            elif fmt == 'csv':
+                path = self._generate_combined_csv(analyses, filename_base)
+                report_paths['csv'] = path
+            elif fmt == 'html':
+                path = self._generate_combined_html(analyses, filename_base)
+                report_paths['html'] = path
+        
+        return report_paths
+
