@@ -71,7 +71,7 @@ class ConsoleUI:
     
     def display_results(self, analysis: Dict[str, Any]):
         """Display analysis results in a formatted table"""
-        print(f"\n{self.colors['header']}{'='*70}")
+        print(f"\n{'='*70}")
         print(f"ANALYSIS RESULTS: {analysis['url']}")
         print(f"{'='*70}{Style.RESET_ALL}\n")
         
@@ -90,12 +90,12 @@ class ConsoleUI:
         for header in required_headers:
             header_lower = header.lower()
             if header_lower in analysis['headers_found']:
-                status = f"{Fore.GREEN}✓ Present{Style.RESET_ALL}"
+                status = f"{Fore.GREEN}Present{Style.RESET_ALL}"
                 value = analysis['headers_found'][header_lower][:50]
                 if len(analysis['headers_found'][header_lower]) > 50:
                     value += "..."
             else:
-                status = f"{Fore.RED}✗ Missing{Style.RESET_ALL}"
+                status = f"{Fore.RED}Missing{Style.RESET_ALL}"
                 value = ""
             
             print(f"  {header:30} {status:20} {value}")
