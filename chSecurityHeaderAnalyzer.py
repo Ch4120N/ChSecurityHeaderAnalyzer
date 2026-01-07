@@ -36,6 +36,9 @@ class ChSecurityHeaderAnalyzer:
         self.reporter = ReportGenerator(self.config)
         self.ui = ConsoleUI()
     
+    def run(self):
+        pass
+
     def analyze_single(self, url: str, output_formats: List[str] = None) -> Dict[str, Any]:
         """Analyze a single website"""
         self.ui.display_header()
@@ -168,5 +171,4 @@ class ChSecurityHeaderAnalyzer:
         except Exception as e:
             self.ui.print_error(f"Error reading file: {str(e)}")
             return []
-    
     
