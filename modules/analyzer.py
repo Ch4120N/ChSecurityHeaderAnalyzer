@@ -71,3 +71,40 @@ class HeaderAnalyzer:
         analysis['recommendations'] = self._generate_recommendations(analysis)
         
         return analysis
+    
+    def _analyze_hsts(self, headers: Dict[str, str], analysis: Dict[str, Any]):
+        """Analyze HSTS header"""
+        hsts = headers.get('strict-transport-security')
+        if not hsts:
+            return
+        
+        analysis['detailed_analysis']['hsts'] = {
+            'header': hsts,
+            'max_age': None,
+            'include_subdomains': False,
+            'preload': False
+        }
+        
+        # Extract max-age
+        max_age_match = re.search(r'max-age=(\d+)', hsts)
+        if max_age_match:
+            max_age = int(max_age_match.group(1))
+            analysis['detailed_analysis']['hsts']['max_age'] = max_age
+            
+            if max_age < self.config['vulnerabilities']['weak_configurations']['hsts']['max_age_minimum']:
+                analysis['weak_headers'].append('Strict-Transport-Security')
+                analysis['vulnerabilities'].append({
+                    'type': 'weak_hsts',
+                    'header': 'Strict-Transport-Security',
+                    'severity': 'medium',
+                    'description': f'HSTS max-age is too low: {max_age} seconds'
+                })
+                analysis['security_score'] -= 5
+        
+        # Check for includeSubDomains
+        if 'includesubdomains' in hsts.lower():
+            analysis['detailed_analysis']['hsts']['include_subdomains'] = True
+        
+        # Check for preload
+        if 'preload' in hsts.lower():
+            analysis['detailed_analysis']['hsts']['preload'] = True
