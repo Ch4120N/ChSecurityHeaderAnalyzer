@@ -79,33 +79,64 @@ class HeaderAnalyzer:
         return analysis
     
     def _check_missing_headers(self, headers: Dict[str, str], analysis: Dict[str, Any]):
-        """Check for missing headers with severity levels"""
+        """Check for missing headers with severity levels - with realistic expectations"""
         critical_headers = self.config['vulnerabilities']['missing_headers']['critical']
         high_headers = self.config['vulnerabilities']['missing_headers']['high']
         medium_headers = self.config['vulnerabilities']['missing_headers']['medium']
         
         for header in critical_headers:
-            if header.lower() not in headers:
-                analysis['missing_headers'].append(header)
-                analysis['vulnerabilities'].append({
-                    'type': 'missing_header_critical',
-                    'header': header,
-                    'severity': 'critical',
-                    'description': f'Critical security header missing: {header}'
-                })
+            header_lower = header.lower()
+            
+            # Special handling for Set-Cookie - not all pages need to set cookies
+            if header == 'Set-Cookie':
+                # Check if it's actually needed (login pages, etc.)
+                # For now, we'll still mark it missing but with a note
+                if header_lower not in headers:
+                    analysis['missing_headers'].append(header)
+                    analysis['vulnerabilities'].append({
+                        'type': 'missing_header_critical',
+                        'header': header,
+                        'severity': 'critical',
+                        'description': f'Critical security header missing: {header} (note: not all pages need to set cookies)'
+                    })
+            else:
+                if header_lower not in headers:
+                    analysis['missing_headers'].append(header)
+                    analysis['vulnerabilities'].append({
+                        'type': 'missing_header_critical',
+                        'header': header,
+                        'severity': 'critical',
+                        'description': f'Critical security header missing: {header}'
+                    })
         
         for header in high_headers:
-            if header.lower() not in headers:
-                analysis['missing_headers'].append(header)
-                analysis['vulnerabilities'].append({
-                    'type': 'missing_header_high',
-                    'header': header,
-                    'severity': 'high',
-                    'description': f'High priority security header missing: {header}'
-                })
+            header_lower = header.lower()
+            
+            # Special handling for CORS headers - not all pages need CORS
+            if header in ['Access-Control-Allow-Origin', 'Access-Control-Allow-Credentials']:
+                # These are only needed for cross-origin requests
+                # We'll still check but note they're context-dependent
+                if header_lower not in headers:
+                    analysis['missing_headers'].append(header)
+                    analysis['vulnerabilities'].append({
+                        'type': 'missing_header_high',
+                        'header': header,
+                        'severity': 'high',
+                        'description': f'High priority CORS header missing: {header} (only needed for cross-origin requests)'
+                    })
+            else:
+                if header_lower not in headers:
+                    analysis['missing_headers'].append(header)
+                    analysis['vulnerabilities'].append({
+                        'type': 'missing_header_high',
+                        'header': header,
+                        'severity': 'high',
+                        'description': f'High priority security header missing: {header}'
+                    })
         
         for header in medium_headers:
-            if header.lower() not in headers:
+            header_lower = header.lower()
+            if header_lower not in headers:
                 analysis['missing_headers'].append(header)
                 analysis['vulnerabilities'].append({
                     'type': 'missing_header_medium',
@@ -113,15 +144,15 @@ class HeaderAnalyzer:
                     'severity': 'medium',
                     'description': f'Medium priority security header missing: {header}'
                 })
-    
+                
     def _check_vulnerable_headers(self, headers: Dict[str, str], analysis: Dict[str, Any]):
-        """Check for vulnerable headers that disclose information"""
+        """Check for vulnerable headers that disclose information - with realistic approach"""
         for header in self.vulnerable_headers:
             header_lower = header.lower()
             if header_lower in headers:
                 value = headers[header_lower]
                 
-                # Special handling for X-XSS-Protection which can be both vulnerable and protective
+                # Special handling for X-XSS-Protection
                 if header.lower() == 'x-xss-protection':
                     if value.lower() == '0':  # X-XSS-Protection disabled
                         analysis['vulnerabilities'].append({
@@ -129,17 +160,52 @@ class HeaderAnalyzer:
                             'header': header,
                             'value': value,
                             'severity': 'medium',
-                            'description': f'X-XSS-Protection is disabled (value: 0)'
+                            'description': f'X-XSS-Protection is disabled (value: 0) - note: deprecated but still useful'
                         })
-                else:
+                    elif '1' in value and 'mode=block' in value.lower():
+                        # This is actually good - X-XSS-Protection enabled with block mode
+                        # Don't add as vulnerability
+                        continue
+                    else:
+                        # Not optimal but not critical
+                        analysis['vulnerabilities'].append({
+                            'type': 'weak_xss_protection',
+                            'header': header,
+                            'severity': 'low',
+                            'description': f'X-XSS-Protection has suboptimal configuration: {value}'
+                        })
+                
+                # Common load balancer/proxy headers that are often necessary
+                elif header_lower in ['via', 'x-varnish', 'x-amz-cf-id', 'cf-ray', 'x-forwarded-proto']:
+                    # These are often necessary for infrastructure and not always a security issue
+                    analysis['vulnerabilities'].append({
+                        'type': 'infrastructure_header',
+                        'header': header,
+                        'value': value,
+                        'severity': 'low',
+                        'description': f'Infrastructure header present: {header} = "{value}" (common in production environments)'
+                    })
+                
+                # Server version headers
+                elif any(x in header_lower for x in ['server', 'x-powered-by', 'x-aspnet', 'x-php', 'x-drupal']):
                     analysis['vulnerabilities'].append({
                         'type': 'information_disclosure',
                         'header': header,
                         'value': value,
-                        'severity': 'low',
-                        'description': f'Potential information disclosure: {header} reveals "{value}"'
+                        'severity': 'low',  # Reduced from medium
+                        'description': f'Server information disclosed: {header} reveals "{value}"'
                     })
-    
+                
+                # Other headers - very low severity
+                else:
+                    analysis['vulnerabilities'].append({
+                        'type': 'information_disclosure_minor',
+                        'header': header,
+                        'value': value,
+                        'severity': 'low',
+                        'description': f'Minor information disclosure: {header} = "{value}"'
+                    })    
+
     def _check_recommended_headers(self, headers: Dict[str, str], analysis: Dict[str, Any]):
         """Check for missing recommended headers"""
         for header in self.recommended_headers:
@@ -654,48 +720,142 @@ class HeaderAnalyzer:
                     break
     
     def _calculate_security_score(self, analysis: Dict[str, Any]):
-        """Calculate security score using weighted configuration"""
-        weights = self.grading_config.get('score_weights', {
-            'required_header': 10,
-            'recommended_header': 5,
-            'vulnerable_header_found': -15,
-            'weak_configuration': -5
-        })
+        """Calculate security score with a balanced approach for comprehensive configuration"""
+        score = 100  # Start with perfect score
         
-        score = 100
+        # 1. Calculate deductions for missing headers (using severity levels from config)
+        critical_headers = self.config['vulnerabilities']['missing_headers']['critical']
+        high_headers = self.config['vulnerabilities']['missing_headers']['high']
+        medium_headers = self.config['vulnerabilities']['missing_headers']['medium']
         
-        # First, give points for headers that ARE present
+        missing_critical = 0
+        missing_high = 0
+        missing_medium = 0
+        
+        # Check critical headers
+        for header in critical_headers:
+            if header.lower() not in analysis['headers_found']:
+                missing_critical += 1
+        
+        # Check high priority headers
+        for header in high_headers:
+            if header.lower() not in analysis['headers_found']:
+                missing_high += 1
+        
+        # Check medium priority headers
+        for header in medium_headers:
+            if header.lower() not in analysis['headers_found']:
+                missing_medium += 1
+        
+        # Apply deductions (scaled to be less harsh)
+        score -= missing_critical * 8    # -8 for each missing critical header (was -15)
+        score -= missing_high * 5        # -5 for each missing high header (was -10)
+        score -= missing_medium * 3      # -3 for each missing medium header (was -5)
+        
+        # 2. Give bonus points for headers that ARE present
         required_headers = self.config['security_headers']['required']
         recommended_headers = self.config['security_headers']['recommended']
         
-        # Give points for present required headers
         present_required = 0
         for header in required_headers:
             if header.lower() in analysis['headers_found']:
                 present_required += 1
         
-        # Give points for present recommended headers
         present_recommended = 0
         for header in recommended_headers:
             if header.lower() in analysis['headers_found']:
                 present_recommended += 1
         
-        # Calculate base score from present headers
-        score = (present_required * weights['required_header']) + (present_recommended * weights['recommended_header'])
+        # Add points for present headers (encourage good practices)
+        score += min(present_required * 3, 30)     # +3 for each required header, max +30
+        score += min(present_recommended * 2, 20)  # +2 for each recommended header, max +20
         
-        # Now deduct for vulnerabilities
-        for vuln in analysis['vulnerabilities']:
-            if vuln['severity'] == 'critical':
-                score -= 20
-            elif vuln['severity'] == 'high':
-                score -= 15
-            elif vuln['severity'] == 'medium':
-                score -= 10
-            elif vuln['severity'] == 'low':
-                score -= 5
+        # 3. Special bonuses for strong configurations
+        # Bonus for HSTS with proper max-age
+        if 'strict-transport-security' in analysis['headers_found']:
+            hsts = analysis['headers_found']['strict-transport-security'].lower()
+            if 'max-age=31536000' in hsts or 'max-age=63072000' in hsts:
+                score += 10  # Good HSTS configuration bonus
         
-        # Ensure score is within bounds
-        analysis['security_score'] = max(0, min(100, score))
+        # Bonus for CSP without unsafe directives
+        if 'content-security-policy' in analysis['headers_found']:
+            csp = analysis['headers_found']['content-security-policy'].lower()
+            if 'unsafe-inline' not in csp and 'unsafe-eval' not in csp:
+                score += 10  # Strong CSP bonus
+        
+        # Bonus for secure cookies
+        if analysis.get('cookie_analysis'):
+            secure_cookies = 0
+            for cookie in analysis['cookie_analysis']:
+                if cookie.get('flags', {}).get('secure') and cookie.get('flags', {}).get('httponly'):
+                    secure_cookies += 1
+            
+            if secure_cookies > 0:
+                score += min(secure_cookies * 2, 10)  # +2 for each secure cookie, max +10
+        
+        # 4. Deductions for vulnerabilities (scaled based on severity)
+        critical_vulns = sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'critical')
+        high_vulns = sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'high')
+        medium_vulns = sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'medium')
+        low_vulns = sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'low')
+        
+        # Apply scaled deductions
+        score -= critical_vulns * 12     # -12 for critical
+        score -= high_vulns * 8          # -8 for high
+        score -= medium_vulns * 4        # -4 for medium
+        score -= low_vulns * 2           # -2 for low
+        
+        # 5. Penalty for information disclosure (vulnerable headers)
+        vulnerable_headers = self.config['security_headers']['vulnerable_headers']
+        vulnerable_found = 0
+        
+        for header in vulnerable_headers:
+            if header.lower() in analysis['headers_found']:
+                # Skip X-XSS-Protection as it's not always a vulnerability
+                if header.lower() != 'x-xss-protection':
+                    vulnerable_found += 1
+        
+        # Reduced penalty for vulnerable headers
+        score -= min(vulnerable_found * 1, 15)  # -1 for each, max -15
+        
+        # 6. Adjust for unrealistic expectations
+        # Many legitimate sites don't have all CORS headers or Set-Cookie headers on initial response
+        # Give partial credit for attempts
+        
+        # If no Set-Cookie header but it's in critical list, reduce penalty
+        if 'set-cookie' not in analysis['headers_found'] and 'Set-Cookie' in critical_headers:
+            score += 5  # Partial credit - not all pages need to set cookies
+        
+        # If no CORS headers but they're expected, reduce penalty
+        if ('access-control-allow-origin' not in analysis['headers_found'] and 
+            'Access-Control-Allow-Origin' in high_headers):
+            score += 3  # Partial credit - CORS not always needed
+        
+        if ('access-control-allow-credentials' not in analysis['headers_found'] and 
+            'Access-Control-Allow-Credentials' in high_headers):
+            score += 3  # Partial credit
+        
+        # 7. Ensure score is within bounds
+        score = max(0, min(100, score))
+        
+        # Round to nearest integer
+        analysis['security_score'] = int(round(score))
+        
+        # Store score breakdown for debugging
+        analysis['score_breakdown'] = {
+            'base_score': 100,
+            'missing_critical': f"{missing_critical} (-{missing_critical * 8})",
+            'missing_high': f"{missing_high} (-{missing_high * 5})",
+            'missing_medium': f"{missing_medium} (-{missing_medium * 3})",
+            'bonus_required': f"{present_required} (+{min(present_required * 3, 30)})",
+            'bonus_recommended': f"{present_recommended} (+{min(present_recommended * 2, 20)})",
+            'critical_vulns': f"{critical_vulns} (-{critical_vulns * 12})",
+            'high_vulns': f"{high_vulns} (-{high_vulns * 8})",
+            'medium_vulns': f"{medium_vulns} (-{medium_vulns * 4})",
+            'low_vulns': f"{low_vulns} (-{low_vulns * 2})",
+            'vulnerable_headers': f"{vulnerable_found} (-{min(vulnerable_found * 1, 15)})",
+            'adjustments': 'CORS/Set-Cookie adjustments applied'
+        }
     
     def _calculate_grade(self, score: int) -> str:
         """Calculate security grade based on configured thresholds"""
