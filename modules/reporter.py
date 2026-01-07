@@ -89,4 +89,50 @@ class ReportGenerator:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return f"{filename}_{timestamp}"
     
-    
+
+    def _generate_txt_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
+        """Generate TXT report"""
+        filepath = os.path.join(self.output_dir, f"{filename_base}.txt")
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write("=" * 60 + "\n")
+            f.write("SECURITY HEADER ANALYSIS REPORT\n")
+            f.write("=" * 60 + "\n\n")
+            
+            f.write(f"URL: {analysis['url']}\n")
+            f.write(f"Scan Date: {analysis['scan_date']}\n")
+            f.write(f"Security Score: {analysis['security_score']}/100\n")
+            f.write(f"Security Grade: {analysis['grade']}\n\n")
+            
+            f.write("-" * 60 + "\n")
+            f.write("HEADERS FOUND\n")
+            f.write("-" * 60 + "\n")
+            for header, value in analysis['headers_found'].items():
+                if not header.startswith('_'):
+                    f.write(f"{header}: {value}\n")
+            
+            f.write("\n" + "-" * 60 + "\n")
+            f.write("MISSING HEADERS\n")
+            f.write("-" * 60 + "\n")
+            for header in analysis['missing_headers']:
+                f.write(f"✗ {header}\n")
+            
+            if not analysis['missing_headers']:
+                f.write("✓ All required headers present\n")
+            
+            f.write("\n" + "-" * 60 + "\n")
+            f.write("VULNERABILITIES\n")
+            f.write("-" * 60 + "\n")
+            for vuln in analysis['vulnerabilities']:
+                f.write(f"[{vuln['severity'].upper()}] {vuln['description']}\n")
+            
+            if not analysis['vulnerabilities']:
+                f.write("✓ No vulnerabilities found\n")
+            
+            f.write("\n" + "-" * 60 + "\n")
+            f.write("RECOMMENDATIONS\n")
+            f.write("-" * 60 + "\n")
+            for rec in analysis['recommendations']:
+                f.write(f"• {rec}\n")
+        
+        return filepath
