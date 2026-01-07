@@ -239,3 +239,6 @@ class ChSecurityHeaderAnalyzer:
             self.ui.print_error(f"Error reading file: {str(e)}")
             return []
     
+if __name__ == '__main__':
+    app = ChSecurityHeaderAnalyzer()
+    app.run()
