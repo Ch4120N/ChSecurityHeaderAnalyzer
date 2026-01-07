@@ -143,3 +143,11 @@ def create_directory(path: str) -> bool:
     except Exception as e:
         logging.error(f"Error creating directory {path}: {e}")
         return False
+    
+def bytes_to_human_readable(size_bytes: int) -> str:
+    """Convert bytes to human readable format"""
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.2f} PB"
