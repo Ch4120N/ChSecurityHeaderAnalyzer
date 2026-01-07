@@ -318,3 +318,21 @@ class ReportGenerator:
                 f.write(f"{url_short:<40} {analysis['security_score']:<6} {analysis['grade']:<6} {len(analysis['missing_headers']):<8}\n")
         
         return filepath
+    
+    def _generate_combined_json(self, analyses: List[Dict[str, Any]], filename_base: str) -> str:
+        """Generate combined JSON report"""
+        filepath = os.path.join(self.output_dir, f"{filename_base}.json")
+        
+        combined = {
+            'report_date': datetime.now().isoformat(),
+            'total_websites': len(analyses),
+            'analyses': analyses,
+            'statistics': self._calculate_statistics(analyses)
+        }
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(combined, f, indent=2, default=str)
+        
+        return filepath
+    
+    
