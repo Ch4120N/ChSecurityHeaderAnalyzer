@@ -921,13 +921,13 @@ class ReportGenerator:
 
     def _calculate_potential_grade(self, score: int) -> str:
         """Calculate potential grade based on score"""
-        if score >= 90:
+        if score >= 80:
             return 'A (Excellent)'
-        elif score >= 75:
+        elif score >= 65:
             return 'B (Good)'
-        elif score >= 60:
+        elif score >= 50:
             return 'C (Fair)'
-        elif score >= 40:
+        elif score >= 35:
             return 'D (Poor)'
         else:
             return 'F (Critical)'
