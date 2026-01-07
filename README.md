@@ -523,20 +523,20 @@ The tool searches for configuration in this order:
 
 ### **CSV Reports**
 - **14 Comprehensive Sections**:
-    1. Executive Summary
-    2. Security Score Breakdown
-    3. Headers Analysis
-    4. Vulnerabilities Detailed
-    5. Prioritized Recommendations
-    6. Improvement Summary
-    7. Risk Assessment Matrix
-    8. Compliance Status
-    9. Technical Details
-    10. Cookie Security Analysis
-    11. CORS Configuration Analysis
-    12. Additional Security Checks
-    13. Action Plan
-    14. Scan Metadata
+  1. Executive Summary
+  2. Security Score Breakdown
+  3. Headers Analysis
+  4. Vulnerabilities Detailed
+  5. Prioritized Recommendations
+  6. Improvement Summary
+  7. Risk Assessment Matrix
+  8. Compliance Status
+  9. Technical Details
+  10. Cookie Security Analysis
+  11. CORS Configuration Analysis
+  12. Additional Security Checks
+  13. Action Plan
+  14. Scan Metadata
 
 ### **JSON Reports**
 - **Machine-readable** structured data
