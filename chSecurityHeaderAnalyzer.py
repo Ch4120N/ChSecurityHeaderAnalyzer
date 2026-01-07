@@ -25,3 +25,14 @@ from modules.reporter import ReportGenerator
 from modules.ui import ConsoleUI, ProgressTracker
 from modules.utils import setup_logging, load_config, validate_url
 
+
+
+class ChSecurityHeaderAnalyzer:
+    def __init__(self):
+        self.config = load_config()
+        self.logger = setup_logging()
+        self.scanner = SecurityScanner(self.config)
+        self.analyzer = HeaderAnalyzer(self.config)
+        self.reporter = ReportGenerator(self.config)
+        self.ui = ConsoleUI()
+    
