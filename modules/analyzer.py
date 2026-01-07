@@ -199,3 +199,24 @@ class HeaderAnalyzer:
                 'description': f'X-Content-Type-Options should be "nosniff", got: {xcto}'
             })
             analysis['security_score'] -= 5
+
+    def _analyze_referrer_policy(self, headers: Dict[str, str], analysis: Dict[str, Any]):
+        """Analyze Referrer-Policy header"""
+        rp = headers.get('referrer-policy')
+        if not rp:
+            return
+        
+        weak_policies = ['unsafe-url', 'no-referrer-when-downgrade']
+        if rp.lower() in weak_policies:
+            analysis['weak_headers'].append('Referrer-Policy')
+            analysis['vulnerabilities'].append({
+                'type': 'weak_referrer_policy',
+                'header': 'Referrer-Policy',
+                'severity': 'low',
+                'description': f'Referrer-Policy has weak value: {rp}'
+            })
+            analysis['security_score'] -= 3
+        
+        analysis['detailed_analysis']['referrer_policy'] = {
+            'header': rp
+        }
