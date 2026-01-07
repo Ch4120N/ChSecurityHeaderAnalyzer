@@ -19,3 +19,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any
 from datetime import datetime
 
+from modules.scanner import SecurityScanner
+from modules.analyzer import HeaderAnalyzer
+from modules.reporter import ReportGenerator
+from modules.ui import ConsoleUI, ProgressTracker
+from modules.utils import setup_logging, load_config, validate_url
+
