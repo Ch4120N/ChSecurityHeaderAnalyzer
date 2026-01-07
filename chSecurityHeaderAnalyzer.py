@@ -19,6 +19,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any
 from datetime import datetime
 
+try:
+    import requests
+    import pandas
+    import jinja2
+    import colorama
+    import rich
+    import yaml
+except ImportError:
+    sys.exit(
+        '[ - ] Please install missing modules with following command:\n\n'
+        '\t - python -m pip install -r requirements.txt'
+        )
+
+
+
 from modules.scanner import SecurityScanner
 from modules.analyzer import HeaderAnalyzer
 from modules.reporter import ReportGenerator
