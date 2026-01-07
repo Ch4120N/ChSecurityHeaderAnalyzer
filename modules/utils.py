@@ -97,3 +97,4 @@ def get_default_config() -> Dict[str, Any]:
             'compress_reports': False
         }
     }
+
