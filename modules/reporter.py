@@ -146,3 +146,29 @@ class ReportGenerator:
         
         return filepath
 
+    
+    def _generate_csv_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
+        """Generate CSV report"""
+        filepath = os.path.join(self.output_dir, f"{filename_base}.csv")
+        
+        # Prepare data for CSV
+        data = {
+            'URL': [analysis['url']],
+            'Scan_Date': [analysis['scan_date']],
+            'Security_Score': [analysis['security_score']],
+            'Grade': [analysis['grade']],
+            'Missing_Headers': [';'.join(analysis['missing_headers'])],
+            'Vulnerability_Count': [len(analysis['vulnerabilities'])],
+            'Recommendation_Count': [len(analysis['recommendations'])]
+        }
+        
+        # Add headers as columns
+        for header, value in analysis['headers_found'].items():
+            if not header.startswith('_'):
+                data[f"Header_{header}"] = [value]
+        
+        df = pd.DataFrame(data)
+        df.to_csv(filepath, index=False, encoding='utf-8')
+        
+        return filepath
+
