@@ -293,3 +293,28 @@ class ReportGenerator:
             f.write(html_content)
         
         return filepath
+
+    def _generate_combined_txt(self, analyses: List[Dict[str, Any]], filename_base: str) -> str:
+        """Generate combined TXT report"""
+        filepath = os.path.join(self.output_dir, f"{filename_base}.txt")
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write("=" * 60 + "\n")
+            f.write("COMBINED SECURITY HEADER ANALYSIS REPORT\n")
+            f.write("=" * 60 + "\n\n")
+            
+            f.write(f"Total Websites Analyzed: {len(analyses)}\n")
+            f.write(f"Report Date: {datetime.now().isoformat()}\n\n")
+            
+            # Summary table
+            f.write("-" * 60 + "\n")
+            f.write("SUMMARY\n")
+            f.write("-" * 60 + "\n")
+            f.write(f"{'URL':<40} {'Score':<6} {'Grade':<6} {'Missing':<8}\n")
+            f.write("-" * 60 + "\n")
+            
+            for analysis in analyses:
+                url_short = analysis['url'][:38] + '..' if len(analysis['url']) > 40 else analysis['url']
+                f.write(f"{url_short:<40} {analysis['security_score']:<6} {analysis['grade']:<6} {len(analysis['missing_headers']):<8}\n")
+        
+        return filepath
