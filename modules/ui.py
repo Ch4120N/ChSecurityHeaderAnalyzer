@@ -44,3 +44,28 @@ class ConsoleUI:
         self.console.print("[bold white]Owned By [/][bold blue][[/] [bold red]Ch4120N[/] [bold blue]][/]", justify="center")
         self.console.print("[bold blue]GitHub.com/Ch4120N[/]", justify='center')
     
+    def print_info(self, message: str):
+        """Print informational message"""
+        self.console.print(f"[bold cyan][[/] [bold white]*[/] [bold cyan]][/] [white]{message}[/]")
+    
+    def print_success(self, message: str):
+        """Print success message"""
+        self.console.print(f"[bold green][[/] [bold white]+[/] [bold green]][/] [bold green]{message}[/]")
+    
+    def print_warning(self, message: str):
+        """Print warning message"""
+        self.console.print(f"[yellow][[/] [bold white]![/] [yellow]][/] [yellow]{message}[/]")
+    
+    def print_error(self, message: str):
+        """Print error message"""
+        self.console.print(f"[bold red][[/] [bold white]-[/] [bold red]][/] [bold red]{message}[/]")
+        
+        # print(f"{self.colors['error']}[-] {message}", file=sys.stderr)
+    
+    def print_critical(self, message: str):
+        """Print critical message"""
+        self.console.print(f"[bold white][[/] [bold red]CRITICAL[/] [bold white]][/] [bold red]{message}[/]")
+        
+        # print(f"{self.colors['critical']}[CRITICAL] {message}", file=sys.stderr)
+    
+    
