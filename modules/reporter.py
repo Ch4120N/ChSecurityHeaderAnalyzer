@@ -172,3 +172,124 @@ class ReportGenerator:
         
         return filepath
 
+    def _generate_html_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
+        """Generate HTML report"""
+        filepath = os.path.join(self.output_dir, f"{filename_base}.html")
+        
+        # HTML template
+        html_template = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Security Header Analysis Report</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 40px; }
+                .header { background: #2c3e50; color: white; padding: 20px; border-radius: 5px; }
+                .section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+                .grade-a { color: #27ae60; font-weight: bold; }
+                .grade-b { color: #f39c12; font-weight: bold; }
+                .grade-c { color: #e67e22; font-weight: bold; }
+                .grade-d { color: #e74c3c; font-weight: bold; }
+                .grade-f { color: #c0392b; font-weight: bold; }
+                .vuln-high { color: #e74c3c; }
+                .vuln-medium { color: #e67e22; }
+                .vuln-low { color: #f39c12; }
+                table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+                th { background-color: #f2f2f2; }
+                .present { color: #27ae60; }
+                .missing { color: #e74c3c; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>Security Header Analysis Report</h1>
+                <p>Generated: {{ scan_date }}</p>
+            </div>
+            
+            <div class="section">
+                <h2>Summary</h2>
+                <p><strong>URL:</strong> {{ url }}</p>
+                <p><strong>Security Score:</strong> {{ security_score }}/100</p>
+                <p><strong>Grade:</strong> <span class="grade-{{ grade.lower() }}">{{ grade }}</span></p>
+            </div>
+            
+            <div class="section">
+                <h2>Headers Analysis</h2>
+                <table>
+                    <tr><th>Header</th><th>Status</th><th>Value</th></tr>
+                    {% for header in required_headers %}
+                    <tr>
+                        <td>{{ header }}</td>
+                        <td>
+                            {% if header.lower() in headers_found %}
+                            <span class="present">✓ Present</span>
+                            {% else %}
+                            <span class="missing">✗ Missing</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ headers_found.get(header.lower(), 'N/A') }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            
+            {% if vulnerabilities %}
+            <div class="section">
+                <h2>Vulnerabilities</h2>
+                <table>
+                    <tr><th>Severity</th><th>Description</th></tr>
+                    {% for vuln in vulnerabilities %}
+                    <tr>
+                        <td class="vuln-{{ vuln.severity }}">{{ vuln.severity|upper }}</td>
+                        <td>{{ vuln.description }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+            {% endif %}
+            
+            {% if recommendations %}
+            <div class="section">
+                <h2>Recommendations</h2>
+                <ul>
+                    {% for rec in recommendations %}
+                    <li>{{ rec }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            <div class="section">
+                <h2>Raw Headers</h2>
+                <pre>{{ raw_headers }}</pre>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Prepare context
+        context = {
+            'url': analysis['url'],
+            'scan_date': analysis['scan_date'],
+            'security_score': analysis['security_score'],
+            'grade': analysis['grade'],
+            'required_headers': self.config['security_headers']['required'],
+            'headers_found': analysis['headers_found'],
+            'vulnerabilities': analysis['vulnerabilities'],
+            'recommendations': analysis['recommendations'],
+            'raw_headers': json.dumps(
+                {k: v for k, v in analysis['headers_found'].items() if not k.startswith('_')},
+                indent=2
+            )
+        }
+        
+        # Render template
+        template = Template(html_template)
+        html_content = template.render(**context)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        return filepath
