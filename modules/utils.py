@@ -98,3 +98,20 @@ def get_default_config() -> Dict[str, Any]:
         }
     }
 
+def validate_url(url: str) -> bool:
+    """Validate URL format"""
+    # Add scheme if missing
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    
+    try:
+        result = urlparse(url)
+        # Check if we have at least scheme and netloc
+        if all([result.scheme, result.netloc]):
+            # Check if scheme is http or https
+            if result.scheme in ['http', 'https']:
+                return True
+    except Exception:
+        pass
+    
+    return False
