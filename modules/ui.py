@@ -11,3 +11,9 @@ from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.panel import Panel
 from rich.layout import Layout
+
+# Initialize colorama for cross-platform colored output
+init(autoreset=True)
+
+class ConsoleUI:
+    pass
