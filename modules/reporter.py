@@ -335,4 +335,26 @@ class ReportGenerator:
         
         return filepath
     
+    def _generate_combined_csv(self, analyses: List[Dict[str, Any]], filename_base: str) -> str:
+        """Generate combined CSV report"""
+        filepath = os.path.join(self.output_dir, f"{filename_base}.csv")
+        
+        # Prepare data
+        rows = []
+        for analysis in analyses:
+            row = {
+                'URL': analysis['url'],
+                'Security_Score': analysis['security_score'],
+                'Grade': analysis['grade'],
+                'Missing_Headers_Count': len(analysis['missing_headers']),
+                'Vulnerability_Count': len(analysis['vulnerabilities']),
+                'Missing_Headers': ';'.join(analysis['missing_headers'])
+            }
+            rows.append(row)
+        
+        df = pd.DataFrame(rows)
+        df.to_csv(filepath, index=False, encoding='utf-8')
+        
+        return filepath
+
     
