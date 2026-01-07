@@ -151,29 +151,500 @@ class ReportGenerator:
 
     
     def _generate_csv_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
-        """Generate CSV report"""
+        """Generate comprehensive CSV report"""
         filepath = os.path.join(self.output_dir, f"{filename_base}.csv")
         
-        # Prepare data for CSV
-        data = {
-            'URL': [analysis['url']],
-            'Scan_Date': [analysis['scan_date']],
-            'Security_Score': [analysis['security_score']],
-            'Grade': [analysis['grade']],
-            'Missing_Headers': [';'.join(analysis['missing_headers'])],
-            'Vulnerability_Count': [len(analysis['vulnerabilities'])],
-            'Recommendation_Count': [len(analysis['recommendations'])]
+        # Prepare data for CSV with multiple sheets (using pandas)
+        import pandas as pd
+        
+        # 1. Summary Sheet
+        summary_data = {
+            'Metric': [
+                'URL',
+                'Scan Date',
+                'Security Score',
+                'Security Grade',
+                'Total Headers Found',
+                'Missing Required Headers',
+                'Weak Headers',
+                'Total Vulnerabilities',
+                'Critical Vulnerabilities',
+                'High Vulnerabilities',
+                'Medium Vulnerabilities',
+                'Low Vulnerabilities',
+                'Recommendations Count'
+            ],
+            'Value': [
+                analysis['url'],
+                analysis['scan_date'],
+                analysis['security_score'],
+                analysis['grade'],
+                len(analysis['headers_found']),
+                len(analysis['missing_headers']),
+                len(analysis['weak_headers']),
+                len(analysis['vulnerabilities']),
+                sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'critical'),
+                sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'high'),
+                sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'medium'),
+                sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'low'),
+                len(analysis['recommendations'])
+            ]
         }
         
-        # Add headers as columns
-        for header, value in analysis['headers_found'].items():
-            if not header.startswith('_'):
-                data[f"Header_{header}"] = [value]
+        summary_df = pd.DataFrame(summary_data)
         
-        df = pd.DataFrame(data)
-        df.to_csv(filepath, index=False, encoding='utf-8')
+        # 2. Headers Analysis Sheet
+        required_headers = self.config['security_headers']['required']
+        recommended_headers = self.config['security_headers']['recommended']
+        vulnerable_headers = self.config['security_headers']['vulnerable_headers']
+        
+        headers_data = []
+        for header in required_headers + recommended_headers + vulnerable_headers:
+            header_lower = header.lower()
+            status = 'Present' if header_lower in analysis['headers_found'] else 'Missing'
+            
+            if header_lower in analysis['headers_found']:
+                value = analysis['headers_found'][header_lower]
+                # Truncate long values
+                if len(value) > 200:
+                    value = value[:197] + '...'
+            else:
+                value = ''
+            
+            category = 'Required' if header in required_headers else \
+                    'Recommended' if header in recommended_headers else \
+                    'Vulnerable' if header in vulnerable_headers else 'Other'
+            
+            risk_level = 'High' if header in required_headers and status == 'Missing' else \
+                        'Medium' if header in recommended_headers and status == 'Missing' else \
+                        'Low' if header in vulnerable_headers and status == 'Present' else 'None'
+            
+            headers_data.append({
+                'Header': header,
+                'Category': category,
+                'Status': status,
+                'Risk Level': risk_level,
+                'Value': value,
+                'Recommendation': self._get_header_recommendation(header, status, value)
+            })
+        
+        headers_df = pd.DataFrame(headers_data)
+        
+        # 3. Vulnerabilities Sheet
+        vulnerabilities_data = []
+        for vuln in analysis['vulnerabilities']:
+            vulnerabilities_data.append({
+                'Severity': vuln['severity'].upper(),
+                'Type': vuln['type'].replace('_', ' ').title(),
+                'Header': vuln.get('header', 'N/A'),
+                'Description': vuln['description'],
+                'Impact': self._get_vulnerability_impact(vuln['severity']),
+                'Remediation': self._get_vulnerability_remediation(vuln)
+            })
+        
+        vulnerabilities_df = pd.DataFrame(vulnerabilities_data) if vulnerabilities_data else pd.DataFrame({
+            'Severity': ['NONE'],
+            'Type': ['No Vulnerabilities'],
+            'Header': ['N/A'],
+            'Description': ['No security vulnerabilities found'],
+            'Impact': ['None'],
+            'Remediation': ['No action required']
+        })
+        
+        # 4. Detailed Header Analysis Sheet
+        detailed_headers_data = []
+        for header, value in analysis['headers_found'].items():
+            if header.startswith('_'):
+                continue
+            
+            header_type = 'Security' if header in [h.lower() for h in required_headers + recommended_headers] else \
+                        'Informational' if header in ['server', 'date', 'content-type'] else \
+                        'Other'
+            
+            # Check for security issues
+            security_issue = ''
+            if header == 'strict-transport-security':
+                if 'max-age=' in value.lower():
+                    import re
+                    match = re.search(r'max-age=(\d+)', value.lower())
+                    if match and int(match.group(1)) < 31536000:
+                        security_issue = 'HSTS max-age too low'
+            
+            detailed_headers_data.append({
+                'Header Name': header,
+                'Header Type': header_type,
+                'Value': value[:500],  # Limit value length
+                'Security Issue': security_issue,
+                'Risk': 'High' if header in ['server', 'x-powered-by'] and value != '' else \
+                    'Medium' if security_issue else 'Low'
+            })
+        
+        detailed_headers_df = pd.DataFrame(detailed_headers_data)
+        
+        # 5. Recommendations Sheet
+        recommendations_data = []
+        for i, rec in enumerate(analysis['recommendations'], 1):
+            priority = 'High' if any(word in rec.lower() for word in ['critical', 'missing required', 'immediate']) else \
+                    'Medium' if any(word in rec.lower() for word in ['strengthen', 'weak', 'consider']) else 'Low'
+            
+            category = 'Missing Header' if 'missing header' in rec.lower() else \
+                    'Configuration' if 'configuration' in rec.lower() or 'strengthen' in rec.lower() else \
+                    'Information Disclosure' if 'remove' in rec.lower() or 'obfuscate' in rec.lower() else \
+                    'Enhancement'
+            
+            recommendations_data.append({
+                'Priority': priority,
+                'Category': category,
+                'Recommendation': rec,
+                'Estimated Effort': self._get_estimated_effort(priority, category),
+                'Timeline': self._get_recommendation_timeline(priority)
+            })
+        
+        recommendations_df = pd.DataFrame(recommendations_data) if recommendations_data else pd.DataFrame({
+            'Priority': ['NONE'],
+            'Category': ['No Recommendations'],
+            'Recommendation': ['All security headers are properly configured'],
+            'Estimated Effort': ['N/A'],
+            'Timeline': ['N/A']
+        })
+        
+        # 6. Risk Assessment Sheet
+        risk_data = {
+            'Risk Category': [
+                'Missing Required Headers',
+                'Weak Security Configurations',
+                'Information Disclosure',
+                'Deprecated Headers',
+                'Misconfigured Headers'
+            ],
+            'Risk Level': [
+                'High' if len(analysis['missing_headers']) > 0 else 'Low',
+                'High' if len(analysis['weak_headers']) > 0 else 'Low',
+                'Medium' if any(h in [vh.lower() for vh in vulnerable_headers] 
+                            for h in analysis['headers_found']) else 'Low',
+                'Low',  # Placeholder - could be enhanced
+                'Medium' if any('weak' in v.get('type', '') for v in analysis['vulnerabilities']) else 'Low'
+            ],
+            'Count': [
+                len(analysis['missing_headers']),
+                len(analysis['weak_headers']),
+                sum(1 for h in analysis['headers_found'] 
+                    if h in [vh.lower() for vh in vulnerable_headers]),
+                0,  # Placeholder
+                sum(1 for v in analysis['vulnerabilities'] if 'weak' in v.get('type', ''))
+            ],
+            'Description': [
+                f'Missing {len(analysis["missing_headers"])} required security headers',
+                f'{len(analysis["weak_headers"])} headers have weak configurations',
+                'Server information exposed through headers',
+                'No deprecated headers detected',
+                'Some headers may be misconfigured'
+            ]
+        }
+        
+        risk_df = pd.DataFrame(risk_data)
+        
+        # 7. Compliance Sheet (Industry Standards)
+        compliance_data = {
+            'Standard': [
+                'OWASP Top 10',
+                'CIS Controls',
+                'PCI DSS',
+                'GDPR',
+                'ISO 27001'
+            ],
+            'Requirement': [
+                'Security Headers Implementation',
+                'Secure Configuration',
+                'Protect Cardholder Data',
+                'Data Protection by Design',
+                'Information Security Controls'
+            ],
+            'Compliance Status': [
+                'Compliant' if analysis['security_score'] >= 80 else 'Partially Compliant',
+                'Compliant' if analysis['security_score'] >= 70 else 'Partially Compliant',
+                'Compliant' if len(analysis['missing_headers']) == 0 else 'Non-Compliant',
+                'Compliant' if analysis['security_score'] >= 60 else 'Partially Compliant',
+                'Compliant' if analysis['security_score'] >= 75 else 'Partially Compliant'
+            ],
+            'Notes': [
+                f'Score: {analysis["security_score"]}/100',
+                f'Missing headers: {len(analysis["missing_headers"])}',
+                'Requires all security headers',
+                'Adequate security measures',
+                'Security controls assessment'
+            ]
+        }
+        
+        compliance_df = pd.DataFrame(compliance_data)
+        
+        # Write all sheets to a single CSV with clear separation
+        with open(filepath, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            
+            # Write header with tool info
+            writer.writerow(['=' * 80])
+            writer.writerow(['Security Header Analysis Report - Generated by ChSecurityHeaderAnalyzer'])
+            writer.writerow([f'Scan Date: {analysis["scan_date"]}'])
+            writer.writerow(['=' * 80])
+            writer.writerow([])
+            
+            # 1. SUMMARY SECTION
+            writer.writerow(['SECTION 1: EXECUTIVE SUMMARY'])
+            writer.writerow(['=' * 60])
+            for metric, value in zip(summary_data['Metric'], summary_data['Value']):
+                writer.writerow([metric, value])
+            writer.writerow([])
+            
+            # 2. SECURITY SCORE BREAKDOWN
+            writer.writerow(['SECTION 2: SECURITY SCORE BREAKDOWN'])
+            writer.writerow(['=' * 60])
+            writer.writerow(['Component', 'Max Points', 'Score', 'Percentage'])
+            
+            components = [
+                ('Required Headers', 60, max(0, 60 - (len(analysis['missing_headers']) * 10))),
+                ('Header Security', 20, max(0, 20 - (len(analysis['weak_headers']) * 5))),
+                ('Information Disclosure', 10, max(0, 10 - (sum(1 for v in analysis['vulnerabilities'] 
+                                                            if v['severity'] in ['high', 'critical']) * 5))),
+                ('Best Practices', 10, max(0, 10 - (sum(1 for v in analysis['vulnerabilities'] 
+                                                        if v['severity'] in ['medium', 'low']) * 3)))
+            ]
+            
+            for component, max_points, score in components:
+                percentage = (score / max_points * 100) if max_points > 0 else 0
+                writer.writerow([component, max_points, score, f'{percentage:.1f}%'])
+            
+            writer.writerow(['-' * 60])
+            writer.writerow(['TOTAL SCORE', 100, analysis['security_score'], 
+                            f'{analysis["security_score"]}%'])
+            writer.writerow(['SECURITY GRADE', '', analysis['grade'], 
+                            self._get_grade_description(analysis['grade'])])
+            writer.writerow([])
+            
+            # 3. HEADERS ANALYSIS
+            writer.writerow(['SECTION 3: HEADERS ANALYSIS'])
+            writer.writerow(['=' * 60])
+            writer.writerow(['Header', 'Category', 'Status', 'Risk Level', 'Value (truncated)', 'Recommendation'])
+            writer.writerow(['-' * 60])
+            
+            for _, row in headers_df.iterrows():
+                writer.writerow([
+                    row['Header'],
+                    row['Category'],
+                    row['Status'],
+                    row['Risk Level'],
+                    str(row['Value'])[:100] + ('...' if len(str(row['Value'])) > 100 else ''),
+                    row['Recommendation']
+                ])
+            writer.writerow([])
+            
+            # 4. VULNERABILITIES DETAILED
+            writer.writerow(['SECTION 4: VULNERABILITIES DETAILED'])
+            writer.writerow(['=' * 60])
+            if vulnerabilities_data:
+                writer.writerow(['Severity', 'Type', 'Affected Header', 'Description', 'Impact', 'Remediation'])
+                writer.writerow(['-' * 60])
+                for _, row in vulnerabilities_df.iterrows():
+                    writer.writerow([
+                        row['Severity'],
+                        row['Type'],
+                        row['Header'],
+                        row['Description'],
+                        row['Impact'],
+                        row['Remediation']
+                    ])
+            else:
+                writer.writerow(['No vulnerabilities found - Excellent security configuration'])
+            writer.writerow([])
+            
+            # 5. PRIORITIZED RECOMMENDATIONS
+            writer.writerow(['SECTION 5: PRIORITIZED RECOMMENDATIONS'])
+            writer.writerow(['=' * 60])
+            if recommendations_data:
+                # Sort by priority
+                recommendations_df_sorted = recommendations_df.sort_values(
+                    by='Priority', 
+                    key=lambda x: x.map({'High': 1, 'Medium': 2, 'Low': 3})
+                )
+                
+                writer.writerow(['Priority', 'Category', 'Recommendation', 'Estimated Effort', 'Timeline'])
+                writer.writerow(['-' * 60])
+                for _, row in recommendations_df_sorted.iterrows():
+                    writer.writerow([
+                        row['Priority'],
+                        row['Category'],
+                        row['Recommendation'],
+                        row['Estimated Effort'],
+                        row['Timeline']
+                    ])
+            else:
+                writer.writerow(['No recommendations needed - All configurations are optimal'])
+            writer.writerow([])
+            
+            # 6. RISK ASSESSMENT MATRIX
+            writer.writerow(['SECTION 6: RISK ASSESSMENT MATRIX'])
+            writer.writerow(['=' * 60])
+            writer.writerow(['Risk Category', 'Risk Level', 'Count', 'Description'])
+            writer.writerow(['-' * 60])
+            for _, row in risk_df.iterrows():
+                writer.writerow([row['Risk Category'], row['Risk Level'], row['Count'], row['Description']])
+            writer.writerow([])
+            
+            # 7. COMPLIANCE STATUS
+            writer.writerow(['SECTION 7: COMPLIANCE STATUS'])
+            writer.writerow(['=' * 60])
+            writer.writerow(['Standard', 'Requirement', 'Compliance Status', 'Notes'])
+            writer.writerow(['-' * 60])
+            for _, row in compliance_df.iterrows():
+                writer.writerow([row['Standard'], row['Requirement'], row['Compliance Status'], row['Notes']])
+            writer.writerow([])
+            
+            # 8. TECHNICAL DETAILS
+            writer.writerow(['SECTION 8: TECHNICAL DETAILS'])
+            writer.writerow(['=' * 60])
+            writer.writerow(['Header Name', 'Header Type', 'Value', 'Security Issue', 'Risk'])
+            writer.writerow(['-' * 60])
+            for _, row in detailed_headers_df.iterrows():
+                writer.writerow([
+                    row['Header Name'],
+                    row['Header Type'],
+                    str(row['Value'])[:150] + ('...' if len(str(row['Value'])) > 150 else ''),
+                    row['Security Issue'],
+                    row['Risk']
+                ])
+            writer.writerow([])
+            
+            # 9. ACTION PLAN
+            writer.writerow(['SECTION 9: ACTION PLAN'])
+            writer.writerow(['=' * 60])
+            
+            # Immediate actions (High priority)
+            high_priority = [r for r in analysis['recommendations'] 
+                            if any(word in r.lower() for word in ['critical', 'missing required', 'immediate'])]
+            
+            if high_priority:
+                writer.writerow(['IMMEDIATE ACTIONS (Next 24-48 hours):'])
+                writer.writerow(['-' * 40])
+                for action in high_priority[:5]:  # Limit to top 5
+                    writer.writerow([f'• {action}'])
+                writer.writerow([])
+            
+            # Short-term actions
+            medium_priority = [r for r in analysis['recommendations'] 
+                            if any(word in r.lower() for word in ['strengthen', 'weak', 'consider'])]
+            
+            if medium_priority:
+                writer.writerow(['SHORT-TERM ACTIONS (Next 7 days):'])
+                writer.writerow(['-' * 40])
+                for action in medium_priority[:5]:
+                    writer.writerow([f'• {action}'])
+                writer.writerow([])
+            
+            # Long-term actions
+            low_priority = [r for r in analysis['recommendations'] 
+                        if r not in high_priority and r not in medium_priority]
+            
+            if low_priority:
+                writer.writerow(['LONG-TERM ACTIONS (Next 30 days):'])
+                writer.writerow(['-' * 40])
+                for action in low_priority[:5]:
+                    writer.writerow([f'• {action}'])
+                writer.writerow([])
+            
+            # 10. SCAN METADATA
+            writer.writerow(['SECTION 10: SCAN METADATA'])
+            writer.writerow(['=' * 60])
+            writer.writerow(['Field', 'Value'])
+            writer.writerow(['-' * 60])
+            writer.writerow(['Scan Timestamp', analysis['scan_date']])
+            writer.writerow(['Tool Version', 'ChSecurityHeaderAnalyzer v1.0.0'])
+            writer.writerow(['Tool Owner', 'Ch4120N'])
+            writer.writerow(['Generated On', datetime.now().isoformat()])
+            writer.writerow(['Report Format', 'CSV'])
+            writer.writerow(['Total Sections', '10'])
+            writer.writerow(['Report File', filename_base + '.csv'])
+            
+            # Footer
+            writer.writerow([])
+            writer.writerow(['=' * 80])
+            writer.writerow(['END OF REPORT'])
+            writer.writerow(['=' * 80])
         
         return filepath
+
+    def _get_header_recommendation(self, header: str, status: str, value: str) -> str:
+        """Get recommendation for a specific header"""
+        if status == 'Missing':
+            if header in self.config['security_headers']['required']:
+                return f'IMPLEMENT: Add {header} header with secure configuration'
+            elif header in self.config['security_headers']['recommended']:
+                return f'RECOMMENDED: Consider adding {header} header'
+            else:
+                return 'No action required'
+        else:
+            if header == 'Strict-Transport-Security':
+                if 'max-age=' in value.lower():
+                    import re
+                    match = re.search(r'max-age=(\d+)', value.lower())
+                    if match:
+                        max_age = int(match.group(1))
+                        if max_age < 31536000:
+                            return f'INCREASE max-age to at least 31536000 (currently {max_age})'
+            return 'Configuration appears secure'
+
+    def _get_vulnerability_impact(self, severity: str) -> str:
+        """Get impact description for vulnerability severity"""
+        impacts = {
+            'critical': 'Critical - Immediate compromise possible',
+            'high': 'High - Significant security risk',
+            'medium': 'Medium - Moderate security risk',
+            'low': 'Low - Minor security concern'
+        }
+        return impacts.get(severity.lower(), 'Unknown impact')
+
+    def _get_vulnerability_remediation(self, vulnerability: Dict[str, Any]) -> str:
+        """Get remediation steps for a vulnerability"""
+        vuln_type = vulnerability['type']
+        
+        if vuln_type == 'missing_header':
+            return f"Implement the {vulnerability.get('header')} header with secure directives"
+        elif vuln_type == 'weak_hsts':
+            return "Increase HSTS max-age to at least 31536000 seconds (1 year)"
+        elif vuln_type == 'weak_csp':
+            return "Remove unsafe-inline and unsafe-eval from CSP directives"
+        elif vuln_type == 'information_disclosure':
+            return f"Remove or obfuscate the {vulnerability.get('header')} header"
+        else:
+            return "Review and fix the header configuration"
+
+    def _get_estimated_effort(self, priority: str, category: str) -> str:
+        """Get estimated effort for implementing a recommendation"""
+        if priority == 'High':
+            return 'Low effort (configuration change)'
+        elif category == 'Missing Header':
+            return 'Medium effort (implementation required)'
+        else:
+            return 'Low effort'
+
+    def _get_recommendation_timeline(self, priority: str) -> str:
+        """Get timeline for implementing a recommendation"""
+        if priority == 'High':
+            return 'Immediate (24-48 hours)'
+        elif priority == 'Medium':
+            return 'Short-term (1 week)'
+        else:
+            return 'Long-term (1 month)'
+
+    def _get_grade_description(self, grade: str) -> str:
+        """Get description for security grade"""
+        descriptions = {
+            'A': 'Excellent - Strong security posture',
+            'B': 'Good - Minor improvements needed',
+            'C': 'Fair - Several improvements needed',
+            'D': 'Poor - Significant improvements required',
+            'F': 'Critical - Immediate action required'
+        }
+        return descriptions.get(grade, 'Unknown')
 
     def _generate_html_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
         """Generate HTML report using the provided beautiful template"""
