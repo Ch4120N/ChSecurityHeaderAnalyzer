@@ -12,4 +12,8 @@ from urllib3.util.retry import Retry
 
 
 class SecurityScanner:
-    pass
+    def __init__(self, config: Dict):
+        self.config = config
+        self.session = self._create_session()
+    
+    
