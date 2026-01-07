@@ -54,3 +54,46 @@ def load_config(config_path: str = None) -> Dict[str, Any]:
     except Exception as e:
         logging.error(f"Error loading config from {config_path}: {e}")
         return get_default_config()
+
+def get_default_config() -> Dict[str, Any]:
+    """Get default configuration"""
+    return {
+        'security_headers': {
+            'required': [
+                'Strict-Transport-Security',
+                'Content-Security-Policy',
+                'X-Frame-Options',
+                'X-Content-Type-Options',
+                'Referrer-Policy',
+                'Permissions-Policy'
+            ],
+            'recommended': [
+                'Cache-Control',
+                'Clear-Site-Data',
+                'Cross-Origin-Embedder-Policy',
+                'Cross-Origin-Opener-Policy',
+                'Cross-Origin-Resource-Policy'
+            ],
+            'vulnerable_headers': [
+                'Server',
+                'X-Powered-By',
+                'X-AspNet-Version',
+                'X-AspNetMvc-Version'
+            ]
+        },
+        'scanner': {
+            'timeout': 10,
+            'max_redirects': 5,
+            'user_agent': 'ChSecurityHeaderAnalyzer/1.0',
+            'verify_ssl': True,
+            'follow_redirects': True,
+            'thread_count': 10,
+            'rate_limit': 10
+        },
+        'reporting': {
+            'default_output_dir': './reports',
+            'formats': ['txt', 'json', 'csv', 'html'],
+            'include_timestamp': True,
+            'compress_reports': False
+        }
+    }
