@@ -157,3 +157,27 @@ class HeaderAnalyzer:
                 'description': 'CSP allows HTTP sources'
             })
             analysis['security_score'] -= 10
+    
+    def _analyze_x_frame_options(self, headers: Dict[str, str], analysis: Dict[str, Any]):
+        """Analyze X-Frame-Options header"""
+        xfo = headers.get('x-frame-options')
+        if not xfo:
+            return
+        
+        xfo_lower = xfo.lower()
+        analysis['detailed_analysis']['x_frame_options'] = {
+            'header': xfo,
+            'value': xfo_lower
+        }
+        
+        if xfo_lower not in ['deny', 'sameorigin']:
+            analysis['weak_headers'].append('X-Frame-Options')
+            analysis['vulnerabilities'].append({
+                'type': 'weak_xfo',
+                'header': 'X-Frame-Options',
+                'severity': 'medium',
+                'description': f'X-Frame-Options has weak value: {xfo}'
+            })
+            analysis['security_score'] -= 5
+    
+    
