@@ -48,4 +48,36 @@ class SecurityScanner:
         
         return session
 
-    
+    def scan_url(self, url: str) -> Optional[Dict[str, str]]:
+        """Scan a URL and return its headers"""
+        try:
+            # Ensure URL has scheme
+            if not url.startswith(('http://', 'https://')):
+                url = 'https://' + url
+            
+            # Rate limiting
+            time.sleep(1 / self.config['scanner']['rate_limit'])
+            
+            # Make request
+            response = self.session.get(
+                url,
+                timeout=self.config['scanner']['timeout'],
+                verify=self.config['scanner']['verify_ssl'],
+                allow_redirects=self.config['scanner']['follow_redirects']
+            )
+            
+            # Get all headers (case-insensitive)
+            headers = {k.lower(): v for k, v in response.headers.items()}
+            
+            # Add response info
+            headers['_status_code'] = str(response.status_code)
+            headers['_url'] = response.url
+            headers['_content_type'] = response.headers.get('Content-Type', '')
+            headers['_server'] = response.headers.get('Server', '')
+            
+            return headers
+            
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Request failed: {str(e)}")
+        except Exception as e:
+            raise Exception(f"Scan failed: {str(e)}")
