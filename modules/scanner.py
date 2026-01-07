@@ -67,13 +67,28 @@ class SecurityScanner:
             )
             
             # Get all headers (case-insensitive)
-            headers = {k.lower(): v for k, v in response.headers.items()}
+            headers = {}
+            
+            # Handle Set-Cookie headers specially (they can have multiple values)
+            set_cookie_values = []
+            for key, value in response.headers.items():
+                key_lower = key.lower()
+                
+                if key_lower == 'set-cookie':
+                    set_cookie_values.append(value)
+                else:
+                    headers[key_lower] = value
+            
+            # Store Set-Cookie as list if multiple, otherwise as single value
+            if set_cookie_values:
+                headers['set-cookie'] = set_cookie_values if len(set_cookie_values) > 1 else set_cookie_values[0]
             
             # Add response info
             headers['_status_code'] = str(response.status_code)
             headers['_url'] = response.url
             headers['_content_type'] = response.headers.get('Content-Type', '')
             headers['_server'] = response.headers.get('Server', '')
+            headers['_response_time'] = str(response.elapsed.total_seconds())
             
             return headers
             
@@ -81,7 +96,7 @@ class SecurityScanner:
             raise Exception(f"Request failed: {str(e)}")
         except Exception as e:
             raise Exception(f"Scan failed: {str(e)}")
-    
+
     def scan_multiple(self, urls: list) -> Dict[str, Optional[Dict[str, str]]]:
         """Scan multiple URLs (to be used with threading)"""
         results = {}
