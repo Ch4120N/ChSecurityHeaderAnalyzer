@@ -5,16 +5,18 @@ URL Scanner Module
 import requests
 import time
 from typing import Dict, Optional, Tuple
+
 from urllib.parse import urlparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-
+from modules.ui import ConsoleUI
 
 class SecurityScanner:
     def __init__(self, config: Dict):
         self.config = config
         self.session = self._create_session()
+        self.ui = ConsoleUI()
         
     def _create_session(self) -> requests.Session:
         """Create a configured requests session"""
@@ -93,9 +95,9 @@ class SecurityScanner:
             return headers
             
         except requests.exceptions.RequestException as e:
-            raise Exception(f"Request failed: {str(e)}")
+            self.ui.print_error("Request failed! Please check your connection/Or use VPN")
         except Exception as e:
-            raise Exception(f"Scan failed: {str(e)}")
+            self.ui.print_error("Scan failed! Please check your connection/Or use VPN")
 
     def scan_multiple(self, urls: list) -> Dict[str, Optional[Dict[str, str]]]:
         """Scan multiple URLs (to be used with threading)"""
