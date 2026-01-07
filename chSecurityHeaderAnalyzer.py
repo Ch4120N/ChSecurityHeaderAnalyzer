@@ -127,6 +127,8 @@ class ChSecurityHeaderAnalyzer:
     def analyze_single(self, url: str, output_formats: List[str] = None) -> Dict[str, Any]:
         """Analyze a single website"""
         self.ui.display_header()
+        self.ui.console.print(f"[bold cyan]Scan Started at[/][white]:[/] [bold yellow]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/]")
+        print("=" * 70 + "\n")
         
         if not validate_url(url):
             self.ui.print_error(f"Invalid URL: {url}")
@@ -166,7 +168,8 @@ class ChSecurityHeaderAnalyzer:
                         output_dir: str = None, threads: int = None) -> List[Dict[str, Any]]:
         """Analyze multiple websites with multithreading"""
         self.ui.display_header()
-        
+        self.ui.console.print(f"[bold cyan]Scan Started at[/][white]:[/] [bold yellow]{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}[/]")
+        print("=" * 70 + "\n")
         # Filter valid URLs
         valid_urls = [url for url in urls if validate_url(url)]
         invalid_urls = set(urls) - set(valid_urls)
