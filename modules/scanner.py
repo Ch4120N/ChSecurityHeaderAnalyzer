@@ -2,15 +2,17 @@
 URL Scanner Module
 """
 
-import requests
+
 import time
 from typing import Dict, Optional, Tuple
 
+import requests
 from urllib.parse import urlparse
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 from modules.ui import ConsoleUI
+
 
 class SecurityScanner:
     def __init__(self, config: Dict):
@@ -20,35 +22,38 @@ class SecurityScanner:
         
     def _create_session(self) -> requests.Session:
         """Create a configured requests session"""
-        session = requests.Session()
-        
-        # Configure retry strategy
-        retry_strategy = Retry(
-            total=3,
-            backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504]
-        )
-        
-        adapter = HTTPAdapter(
-            max_retries=retry_strategy,
-            pool_connections=100,
-            pool_maxsize=100
-        )
-        
-        session.mount("http://", adapter)
-        session.mount("https://", adapter)
-        
-        # Set default headers
-        session.headers.update({
-            'User-Agent': self.config['scanner']['user_agent'],
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'close',
-            'Upgrade-Insecure-Requests': '1'
-        })
-        
-        return session
+        try:
+            session = requests.Session()
+            
+            # Configure retry strategy
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504]
+            )
+            
+            adapter = HTTPAdapter(
+                max_retries=retry_strategy,
+                pool_connections=100,
+                pool_maxsize=100
+            )
+            
+            session.mount("http://", adapter)
+            session.mount("https://", adapter)
+            
+            # Set default headers
+            session.headers.update({
+                'User-Agent': self.config['scanner']['user_agent'],
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'close',
+                'Upgrade-Insecure-Requests': '1'
+            })
+            
+            return session
+        except Exception:
+            pass
 
     def scan_url(self, url: str) -> Optional[Dict[str, str]]:
         """Scan a URL and return its headers"""
