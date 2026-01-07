@@ -58,7 +58,7 @@ def load_config(config_path: str = None) -> Dict[str, Any]:
         return get_default_config()
 
 def get_default_config() -> Dict[str, Any]:
-    """Get default configuration"""
+    """Get default configuration matching the updated config.yaml"""
     return {
         'security_headers': {
             'required': [
@@ -67,20 +67,71 @@ def get_default_config() -> Dict[str, Any]:
                 'X-Frame-Options',
                 'X-Content-Type-Options',
                 'Referrer-Policy',
-                'Permissions-Policy'
+                'Permissions-Policy',
+                'Set-Cookie',
+                'Access-Control-Allow-Origin',
+                'Access-Control-Allow-Credentials'
             ],
             'recommended': [
                 'Cache-Control',
                 'Clear-Site-Data',
                 'Cross-Origin-Embedder-Policy',
                 'Cross-Origin-Opener-Policy',
-                'Cross-Origin-Resource-Policy'
+                'Cross-Origin-Resource-Policy',
+                'X-Permitted-Cross-Domain-Policies',
+                'X-Download-Options',
+                'Content-Type',
+                'X-DNS-Prefetch-Control',
+                'Expect-CT',
+                'Feature-Policy',
+                'Public-Key-Pins',
+                'X-Robots-Tag',
+                'X-Request-ID'
             ],
             'vulnerable_headers': [
                 'Server',
                 'X-Powered-By',
                 'X-AspNet-Version',
-                'X-AspNetMvc-Version'
+                'X-AspNetMvc-Version',
+                'X-Runtime',
+                'X-Version',
+                'X-Generator',
+                'X-Drupal-Cache',
+                'X-Pingback',
+                'X-Backend-Server',
+                'X-Served-By',
+                'X-Host',
+                'X-Backend',
+                'X-Server',
+                'X-Engine',
+                'X-PHP-Version',
+                'X-PHP-Platform',
+                'X-Request-Id',
+                'X-Cache-Info',
+                'X-Cache-Hits',
+                'Via',
+                'X-Varnish',
+                'X-Amz-Cf-Id',
+                'X-Amz-Cf-Pop',
+                'CF-Ray',
+                'CF-Cache-Status',
+                'X-Google-Cache-Control',
+                'X-Source-Scheme',
+                'X-Forwarded-Server',
+                'X-Forwarded-Host',
+                'X-Forwarded-Proto',
+                'X-Original-URL',
+                'X-Rewrite-URL',
+                'X-Content-Type',
+                'X-UA-Compatible',
+                'X-Wap-Profile',
+                'X-ATT-DeviceId',
+                'X-Content-Duration',
+                'X-Content-Security-Policy',
+                'X-WebKit-CSP',
+                'X-Content-Security-Policy-Report-Only',
+                'X-Firefox-Security-Policy',
+                'X-XSS-Protection'
             ]
         },
         'scanner': {
@@ -97,6 +148,78 @@ def get_default_config() -> Dict[str, Any]:
             'formats': ['txt', 'json', 'csv', 'html'],
             'include_timestamp': True,
             'compress_reports': False
+        },
+        'vulnerabilities': {
+            'missing_headers': {
+                'critical': [
+                    'Strict-Transport-Security',
+                    'Content-Security-Policy',
+                    'Set-Cookie'
+                ],
+                'high': [
+                    'X-Frame-Options',
+                    'X-Content-Type-Options',
+                    'Access-Control-Allow-Origin',
+                    'Access-Control-Allow-Credentials'
+                ],
+                'medium': [
+                    'Referrer-Policy',
+                    'Permissions-Policy'
+                ]
+            },
+            'weak_configurations': {
+                'hsts': {
+                    'max_age_minimum': 31536000,
+                    'include_subdomains': True,
+                    'preload': True
+                },
+                'csp': {
+                    'unsafe_inline': False,
+                    'unsafe_eval': False,
+                    'https_required': True
+                },
+                'cookie': {
+                    'secure_required': True,
+                    'httponly_required': True,
+                    'samesite_required': 'Strict'
+                },
+                'cors': {
+                    'wildcard_allowed': False,
+                    'credentials_with_wildcard': False,
+                    'methods_exposed': ['GET', 'POST', 'HEAD', 'OPTIONS']
+                },
+                'cache': {
+                    'no_store_required': True,
+                    'no_cache_required': False,
+                    'private_required': True,
+                    'must_revalidate_required': True
+                }
+            }
+        },
+        'grading': {
+            'score_weights': {
+                'required_header': 10,
+                'recommended_header': 5,
+                'vulnerable_header_found': -15,
+                'weak_configuration': -5
+            },
+            'grade_thresholds': {
+                'A': 90,
+                'B': 75,
+                'C': 60,
+                'D': 40,
+                'F': 0
+            }
+        },
+        'additional_checks': {
+            'check_cookie_flags': True,
+            'check_csp_directives': True,
+            'check_cors_configuration': True,
+            'check_hsts_preload_status': False,
+            'check_ssl_certificate': True,
+            'check_tls_version': True,
+            'check_http_methods': True,
+            'check_server_banner': True
         }
     }
 
