@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 
 
-def setup_logging(log_level: str = "INFO") -> logging.Logger:
+def setup_logging(log_level: str = "INFO", suppress_warnings: bool = True) -> logging.Logger:
     """Setup logging configuration"""
     # Create logs directory if it doesn't exist
     log_dir = Path("logs")
@@ -28,7 +28,21 @@ def setup_logging(log_level: str = "INFO") -> logging.Logger:
             logging.StreamHandler(sys.stdout)
         ]
     )
-    
+    # Suppress specific warnings if requested
+    if suppress_warnings:
+        # Suppress urllib3 connection warnings
+        logging.getLogger("urllib3").setLevel(logging.ERROR)
+        
+        # Suppress requests library warnings
+        logging.getLogger("requests").setLevel(logging.ERROR)
+        
+        # Suppress connection pool warnings
+        logging.getLogger("urllib3.connectionpool").setLevel(logging.ERROR)
+        
+        # Suppress InsecureRequestWarning if SSL verification is disabled
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
     return logging.getLogger(__name__)
 
 def load_config(config_path: str = None) -> Dict[str, Any]:
