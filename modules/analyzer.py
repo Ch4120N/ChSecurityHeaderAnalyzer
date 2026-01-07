@@ -220,3 +220,25 @@ class HeaderAnalyzer:
         analysis['detailed_analysis']['referrer_policy'] = {
             'header': rp
         }
+
+    def _analyze_permissions_policy(self, headers: Dict[str, str], analysis: Dict[str, Any]):
+        """Analyze Permissions-Policy header"""
+        pp = headers.get('permissions-policy')
+        if not pp:
+            return
+        
+        analysis['detailed_analysis']['permissions_policy'] = {
+            'header': pp
+        }
+        
+        # Check for overly permissive settings
+        if 'camera=*' in pp or 'microphone=*' in pp or 'geolocation=*' in pp:
+            analysis['vulnerabilities'].append({
+                'type': 'permissive_permissions',
+                'header': 'Permissions-Policy',
+                'severity': 'low',
+                'description': 'Permissions-Policy allows sensitive features globally'
+            })
+            analysis['security_score'] -= 2
+    
+    
