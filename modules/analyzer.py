@@ -27,7 +27,7 @@ class HeaderAnalyzer:
             'missing_headers': [],
             'weak_headers': [],
             'vulnerabilities': [],
-            'security_score': 100,
+            'security_score': 100,  # Start with perfect score
             'grade': 'A',
             'recommendations': [],
             'detailed_analysis': {},
@@ -214,7 +214,9 @@ class HeaderAnalyzer:
             csp_lower = csp.lower()
             config = self.config['vulnerabilities']['weak_configurations']['csp']
             
-            if config['unsafe_inline'] and 'unsafe-inline' in csp_lower:
+            # Note: config values are True when unsafe directives are NOT allowed
+            # So we check if unsafe-inline is present when it should be False (not allowed)
+            if not config['unsafe_inline'] and 'unsafe-inline' in csp_lower:
                 analysis['weak_headers'].append('Content-Security-Policy')
                 analysis['vulnerabilities'].append({
                     'type': 'weak_csp',
@@ -223,7 +225,7 @@ class HeaderAnalyzer:
                     'description': 'CSP contains unsafe-inline directive'
                 })
             
-            if config['unsafe_eval'] and 'unsafe-eval' in csp_lower:
+            if not config['unsafe_eval'] and 'unsafe-eval' in csp_lower:
                 analysis['weak_headers'].append('Content-Security-Policy')
                 analysis['vulnerabilities'].append({
                     'type': 'weak_csp',
@@ -615,11 +617,13 @@ class HeaderAnalyzer:
                 'valid': False,
                 'error': str(e)
             }
-            analysis['vulnerabilities'].append({
-                'type': 'ssl_certificate_error',
-                'severity': 'high',
-                'description': f'SSL certificate error: {str(e)}'
-            })
+            # Only add vulnerability if SSL certificate check actually fails for HTTPS sites
+            if 'https://' in url:
+                analysis['vulnerabilities'].append({
+                    'type': 'ssl_certificate_error',
+                    'severity': 'high',
+                    'description': f'SSL certificate error: {str(e)}'
+                })
     
     def _check_server_banner(self, headers: Dict[str, str], analysis: Dict[str, Any]):
         """Check server banner for information disclosure"""
@@ -660,34 +664,26 @@ class HeaderAnalyzer:
         
         score = 100
         
-        # Deduct for missing required headers
-        missing_critical = [h for h in analysis['missing_headers'] 
-                          if h in self.config['vulnerabilities']['missing_headers']['critical']]
-        missing_high = [h for h in analysis['missing_headers'] 
-                       if h in self.config['vulnerabilities']['missing_headers']['high']]
-        missing_medium = [h for h in analysis['missing_headers'] 
-                         if h in self.config['vulnerabilities']['missing_headers']['medium']]
+        # First, give points for headers that ARE present
+        required_headers = self.config['security_headers']['required']
+        recommended_headers = self.config['security_headers']['recommended']
         
-        # Critical headers: -15 each
-        score -= len(missing_critical) * 15
+        # Give points for present required headers
+        present_required = 0
+        for header in required_headers:
+            if header.lower() in analysis['headers_found']:
+                present_required += 1
         
-        # High priority headers: -10 each
-        score -= len(missing_high) * 10
+        # Give points for present recommended headers
+        present_recommended = 0
+        for header in recommended_headers:
+            if header.lower() in analysis['headers_found']:
+                present_recommended += 1
         
-        # Medium priority headers: -5 each
-        score -= len(missing_medium) * 5
+        # Calculate base score from present headers
+        score = (present_required * weights['required_header']) + (present_recommended * weights['recommended_header'])
         
-        # Deduct for vulnerable headers found
-        vuln_headers = sum(1 for v in analysis['vulnerabilities'] 
-                          if v['type'] == 'information_disclosure')
-        score += vuln_headers * weights['vulnerable_header_found']
-        
-        # Deduct for weak configurations
-        weak_configs = sum(1 for v in analysis['vulnerabilities'] 
-                          if 'weak' in v['type'])
-        score += weak_configs * weights['weak_configuration']
-        
-        # Deduct based on vulnerability severity
+        # Now deduct for vulnerabilities
         for vuln in analysis['vulnerabilities']:
             if vuln['severity'] == 'critical':
                 score -= 20
