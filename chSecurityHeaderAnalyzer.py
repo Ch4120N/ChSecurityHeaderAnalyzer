@@ -73,4 +73,59 @@ class ChSecurityHeaderAnalyzer:
             self.logger.error(f"Error analyzing {url}", exc_info=True)
             return None
     
+
+    def analyze_multiple(self, urls: List[str], output_formats: List[str] = None, 
+                        output_dir: str = None, threads: int = None) -> List[Dict[str, Any]]:
+        """Analyze multiple websites with multithreading"""
+        self.ui.display_header()
+        
+        # Filter valid URLs
+        valid_urls = [url for url in urls if validate_url(url)]
+        invalid_urls = set(urls) - set(valid_urls)
+        
+        if invalid_urls:
+            self.ui.print_warning(f"Skipped {len(invalid_urls)} invalid URLs")
+            for url in invalid_urls:
+                self.ui.print_warning(f"  Invalid: {url}")
+        
+        if not valid_urls:
+            self.ui.print_error("No valid URLs to analyze")
+            return []
+        
+        self.ui.print_info(f"Analyzing {len(valid_urls)} URLs with {threads or self.config['scanner']['thread_count']} threads")
+        
+        results = []
+        progress = ProgressTracker(total=len(valid_urls))
+        
+        # Thread pool for parallel scanning
+        thread_count = threads or self.config['scanner']['thread_count']
+        with ThreadPoolExecutor(max_workers=thread_count) as executor:
+            # Submit all tasks
+            future_to_url = {
+                executor.submit(self._analyze_single_worker, url, output_formats): url 
+                for url in valid_urls
+            }
+            
+            # Process results as they complete
+            for future in as_completed(future_to_url):
+                url = future_to_url[future]
+                try:
+                    result = future.result()
+                    if result:
+                        results.append(result)
+                except Exception as e:
+                    self.ui.print_error(f"Error processing {url}: {str(e)}")
+                
+                progress.update()
+                self.ui.print_progress(progress)
+        
+        # Generate combined report if multiple URLs
+        if len(results) > 1 and output_formats:
+            self.ui.print_info("Generating combined report...")
+            combined_paths = self.reporter.generate_combined_report(results, output_formats, output_dir)
+            for format, path in combined_paths.items():
+                self.ui.print_success(f"Combined {format.upper()} report saved: {path}")
+        
+        return results
+    
     
