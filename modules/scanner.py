@@ -81,3 +81,13 @@ class SecurityScanner:
             raise Exception(f"Request failed: {str(e)}")
         except Exception as e:
             raise Exception(f"Scan failed: {str(e)}")
+    
+    def scan_multiple(self, urls: list) -> Dict[str, Optional[Dict[str, str]]]:
+        """Scan multiple URLs (to be used with threading)"""
+        results = {}
+        for url in urls:
+            try:
+                results[url] = self.scan_url(url)
+            except Exception as e:
+                results[url] = None
+        return results
