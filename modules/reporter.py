@@ -1025,24 +1025,225 @@ class ReportGenerator:
         return filepath
     
     def _generate_combined_csv(self, analyses: List[Dict[str, Any]], filename_base: str) -> str:
-        """Generate combined CSV report"""
+        """Generate comprehensive combined CSV report for multiple analyses"""
         filepath = os.path.join(self.output_dir, f"{filename_base}.csv")
         
-        # Prepare data
-        rows = []
-        for analysis in analyses:
-            row = {
-                'URL': analysis['url'],
-                'Security_Score': analysis['security_score'],
-                'Grade': analysis['grade'],
-                'Missing_Headers_Count': len(analysis['missing_headers']),
-                'Vulnerability_Count': len(analysis['vulnerabilities']),
-                'Missing_Headers': ';'.join(analysis['missing_headers'])
+        with open(filepath, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            
+            # Header
+            writer.writerow(['=' * 100])
+            writer.writerow(['COMBINED SECURITY HEADER ANALYSIS REPORT - MULTIPLE WEBSITES'])
+            writer.writerow([f'Generated: {datetime.now().isoformat()}'])
+            writer.writerow([f'Total Websites Analyzed: {len(analyses)}'])
+            writer.writerow(['=' * 100])
+            writer.writerow([])
+            
+            # EXECUTIVE SUMMARY
+            writer.writerow(['EXECUTIVE SUMMARY'])
+            writer.writerow(['=' * 60])
+            
+            # Calculate statistics
+            avg_score = sum(a['security_score'] for a in analyses) / len(analyses)
+            grade_dist = {}
+            total_vulnerabilities = 0
+            total_missing = 0
+            
+            for analysis in analyses:
+                grade = analysis['grade']
+                grade_dist[grade] = grade_dist.get(grade, 0) + 1
+                total_vulnerabilities += len(analysis['vulnerabilities'])
+                total_missing += len(analysis['missing_headers'])
+            
+            writer.writerow(['Overall Security Score (Average):', f'{avg_score:.1f}/100'])
+            writer.writerow(['Total Vulnerabilities Found:', total_vulnerabilities])
+            writer.writerow(['Total Missing Headers:', total_missing])
+            writer.writerow(['Grade Distribution:', 
+                            ', '.join(f'{grade}: {count}' for grade, count in sorted(grade_dist.items()))])
+            writer.writerow([])
+            
+            # WEBSITE COMPARISON MATRIX
+            writer.writerow(['WEBSITE COMPARISON MATRIX'])
+            writer.writerow(['=' * 60])
+            writer.writerow(['Rank', 'URL', 'Score', 'Grade', 'Missing', 'Vulnerabilities', 'Status'])
+            
+            # Sort by score (descending)
+            sorted_analyses = sorted(analyses, key=lambda x: x['security_score'], reverse=True)
+            
+            for i, analysis in enumerate(sorted_analyses, 1):
+                status = 'Secure' if analysis['security_score'] >= 80 else \
+                        'Needs Improvement' if analysis['security_score'] >= 60 else \
+                        'Critical'
+                
+                writer.writerow([
+                    i,
+                    analysis['url'][:50] + ('...' if len(analysis['url']) > 50 else ''),
+                    analysis['security_score'],
+                    analysis['grade'],
+                    len(analysis['missing_headers']),
+                    len(analysis['vulnerabilities']),
+                    status
+                ])
+            writer.writerow([])
+            
+            # DETAILED ANALYSIS PER WEBSITE
+            writer.writerow(['DETAILED ANALYSIS PER WEBSITE'])
+            writer.writerow(['=' * 60])
+            
+            for i, analysis in enumerate(sorted_analyses, 1):
+                writer.writerow([f'Website #{i}: {analysis["url"]}'])
+                writer.writerow(['-' * 40])
+                writer.writerow(['Score:', analysis['security_score']])
+                writer.writerow(['Grade:', analysis['grade']])
+                writer.writerow(['Missing Headers:', ', '.join(analysis['missing_headers']) or 'None'])
+                
+                if analysis['vulnerabilities']:
+                    writer.writerow(['Critical Issues:', 
+                                    str(sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'critical'))])
+                    writer.writerow(['High Issues:', 
+                                    str(sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'high'))])
+                else:
+                    writer.writerow(['Vulnerabilities:', 'None'])
+                
+                writer.writerow([])
+            
+            # COMMON VULNERABILITIES ACROSS WEBSITES
+            writer.writerow(['COMMON VULNERABILITIES ACROSS WEBSITES'])
+            writer.writerow(['=' * 60])
+            
+            # Collect all vulnerabilities
+            all_vulnerabilities = []
+            for analysis in analyses:
+                for vuln in analysis['vulnerabilities']:
+                    all_vulnerabilities.append(vuln['description'])
+            
+            # Count frequency
+            from collections import Counter
+            vuln_counter = Counter(all_vulnerabilities)
+            
+            if vuln_counter:
+                writer.writerow(['Vulnerability', 'Frequency', 'Affected Websites'])
+                writer.writerow(['-' * 60])
+                
+                for vuln, count in vuln_counter.most_common(10):
+                    # Find which websites have this vulnerability
+                    affected = []
+                    for analysis in analyses:
+                        for v in analysis['vulnerabilities']:
+                            if v['description'] == vuln:
+                                affected.append(analysis['url'][:30] + '...')
+                                break
+                    
+                    writer.writerow([
+                        vuln[:80] + ('...' if len(vuln) > 80 else ''),
+                        count,
+                        ', '.join(affected[:3]) + ('...' if len(affected) > 3 else '')
+                    ])
+            else:
+                writer.writerow(['No common vulnerabilities found across websites'])
+            
+            writer.writerow([])
+            
+            # RECOMMENDATIONS SUMMARY
+            writer.writerow(['TOP RECOMMENDATIONS ACROSS ALL WEBSITES'])
+            writer.writerow(['=' * 60])
+            
+            all_recommendations = []
+            for analysis in analyses:
+                all_recommendations.extend(analysis['recommendations'])
+            
+            rec_counter = Counter(all_recommendations)
+            
+            if rec_counter:
+                writer.writerow(['Priority', 'Recommendation', 'Frequency', 'Affected Websites'])
+                writer.writerow(['-' * 60])
+                
+                for rec, count in rec_counter.most_common(15):
+                    # Determine priority
+                    priority = 'HIGH' if any(word in rec.lower() for word in 
+                                        ['critical', 'missing required', 'immediate']) else \
+                            'MEDIUM' if any(word in rec.lower() for word in 
+                                            ['strengthen', 'weak', 'consider']) else 'LOW'
+                    
+                    # Find affected websites
+                    affected = []
+                    for analysis in analyses:
+                        if rec in analysis['recommendations']:
+                            affected.append(analysis['url'][:30] + '...')
+                    
+                    writer.writerow([
+                        priority,
+                        rec[:100] + ('...' if len(rec) > 100 else ''),
+                        count,
+                        ', '.join(affected[:3]) + ('...' if len(affected) > 3 else '')
+                    ])
+            else:
+                writer.writerow(['No recommendations needed - All websites are properly configured'])
+            
+            writer.writerow([])
+            
+            # SECURITY TRENDS
+            writer.writerow(['SECURITY TRENDS ANALYSIS'])
+            writer.writerow(['=' * 60])
+            
+            score_ranges = {
+                'Excellent (90-100)': 0,
+                'Good (80-89)': 0,
+                'Fair (70-79)': 0,
+                'Poor (60-69)': 0,
+                'Critical (<60)': 0
             }
-            rows.append(row)
-        
-        df = pd.DataFrame(rows)
-        df.to_csv(filepath, index=False, encoding='utf-8')
+            
+            for analysis in analyses:
+                score = analysis['security_score']
+                if score >= 90:
+                    score_ranges['Excellent (90-100)'] += 1
+                elif score >= 80:
+                    score_ranges['Good (80-89)'] += 1
+                elif score >= 70:
+                    score_ranges['Fair (70-79)'] += 1
+                elif score >= 60:
+                    score_ranges['Poor (60-69)'] += 1
+                else:
+                    score_ranges['Critical (<60)'] += 1
+            
+            writer.writerow(['Score Range', 'Count', 'Percentage'])
+            writer.writerow(['-' * 60])
+            
+            total = len(analyses)
+            for range_name, count in score_ranges.items():
+                percentage = (count / total * 100) if total > 0 else 0
+                writer.writerow([range_name, count, f'{percentage:.1f}%'])
+            
+            writer.writerow([])
+            
+            # ACTION PLAN FOR IMPROVEMENT
+            writer.writerow(['ACTION PLAN FOR IMPROVEMENT'])
+            writer.writerow(['=' * 60])
+            
+            # Group by common issues
+            common_missing = {}
+            for analysis in analyses:
+                for header in analysis['missing_headers']:
+                    common_missing[header] = common_missing.get(header, 0) + 1
+            
+            if common_missing:
+                writer.writerow(['MOST COMMON MISSING HEADERS (Prioritize these):'])
+                writer.writerow(['Header', 'Frequency', 'Affected %'])
+                writer.writerow(['-' * 60])
+                
+                for header, count in sorted(common_missing.items(), key=lambda x: x[1], reverse=True)[:5]:
+                    percentage = (count / total * 100)
+                    writer.writerow([header, count, f'{percentage:.1f}%'])
+            else:
+                writer.writerow(['No common missing headers across websites'])
+            
+            writer.writerow([])
+            
+            # Footer
+            writer.writerow(['=' * 100])
+            writer.writerow(['END OF COMBINED REPORT'])
+            writer.writerow(['=' * 100])
         
         return filepath
 
