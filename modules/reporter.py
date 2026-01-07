@@ -176,127 +176,607 @@ class ReportGenerator:
         return filepath
 
     def _generate_html_report(self, analysis: Dict[str, Any], filename_base: str) -> str:
-        """Generate HTML report"""
+        """Generate HTML report using the provided beautiful template"""
         filepath = os.path.join(self.output_dir, f"{filename_base}.html")
         
-        # HTML template
-        html_template = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <title>Security Header Analysis Report</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 40px; }
-                .header { background: #2c3e50; color: white; padding: 20px; border-radius: 5px; }
-                .section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
-                .grade-a { color: #27ae60; font-weight: bold; }
-                .grade-b { color: #f39c12; font-weight: bold; }
-                .grade-c { color: #e67e22; font-weight: bold; }
-                .grade-d { color: #e74c3c; font-weight: bold; }
-                .grade-f { color: #c0392b; font-weight: bold; }
-                .vuln-high { color: #e74c3c; }
-                .vuln-medium { color: #e67e22; }
-                .vuln-low { color: #f39c12; }
-                table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
-                th { background-color: #f2f2f2; }
-                .present { color: #27ae60; }
-                .missing { color: #e74c3c; }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>Security Header Analysis Report</h1>
-                <p>Generated: {{ scan_date }}</p>
+        # Prepare context for the template
+        grade_class = f"grade-{analysis['grade'].lower()}"
+        grade_display = f"{analysis['grade']} - {self._get_grade_text(analysis['grade'])}"
+        
+        # Count vulnerabilities by severity
+        vulnerability_count = {
+            'high': sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'high'),
+            'medium': sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'medium'),
+            'low': sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'low'),
+            'critical': sum(1 for v in analysis['vulnerabilities'] if v['severity'] == 'critical'),
+        }
+        total_vulnerabilities = sum(vulnerability_count.values())
+        
+        # Prepare headers analysis rows
+        headers_rows = self._prepare_headers_rows(analysis)
+        
+        # Prepare vulnerabilities rows
+        vulnerabilities_rows = self._prepare_vulnerabilities_rows(analysis['vulnerabilities'])
+        
+        # Prepare recommendations list
+        recommendations_list = self._prepare_recommendations_list(analysis['recommendations'])
+        
+        # Prepare raw headers JSON
+        raw_headers = {k: v for k, v in analysis['headers_found'].items() if not k.startswith('_')}
+        
+        # HTML template (using the provided template)
+        html_template = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Header Analysis Report</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {{
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-color: #2c3e50;
+            --light-color: #ecf0f1;
+            --gray-color: #95a5a6;
+            --border-radius: 10px;
+            --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }}
+
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }}
+
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+
+        .header {{
+            background: linear-gradient(135deg, var(--primary-color) 0%, #1a252f 100%);
+            color: white;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            margin-bottom: 30px;
+            box-shadow: var(--box-shadow);
+            position: relative;
+            overflow: hidden;
+        }}
+
+        .header::before {{
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+        }}
+
+        .header h1 {{
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }}
+
+        .header h1 i {{
+            color: var(--secondary-color);
+        }}
+
+        .header p {{
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }}
+
+        .summary-cards {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }}
+
+        .card {{
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 25px;
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }}
+
+        .card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }}
+
+        .card h3 {{
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            border-bottom: 2px solid var(--light-color);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+
+        .score-card {{
+            text-align: center;
+            background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+        }}
+
+        .score {{
+            font-size: 4rem;
+            font-weight: 800;
+            margin: 20px 0;
+        }}
+
+        .grade {{
+            display: inline-block;
+            padding: 8px 25px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.5rem;
+            letter-spacing: 1px;
+        }}
+
+        .grade-a {{ background-color: #d5f4e6; color: var(--success-color); }}
+        .grade-b {{ background-color: #fff3cd; color: #e6a700; }}
+        .grade-c {{ background-color: #ffeaa7; color: #e67e22; }}
+        .grade-d {{ background-color: #fadbd8; color: #e74c3c; }}
+        .grade-f {{ background-color: var(--danger-color); color: white; }}
+
+        .section {{
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--box-shadow);
+        }}
+
+        .section h2 {{
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+            border-left: 5px solid var(--secondary-color);
+            padding-left: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }}
+
+        th {{
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+            padding: 18px 15px;
+            text-align: left;
+        }}
+
+        td {{
+            padding: 16px 15px;
+            border-bottom: 1px solid #eee;
+        }}
+
+        tr:hover {{
+            background-color: #f9f9f9;
+        }}
+
+        .present, .missing {{
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 15px;
+            border-radius: 50px;
+        }}
+
+        .present {{
+            background-color: #d5f4e6;
+            color: var(--success-color);
+        }}
+
+        .missing {{
+            background-color: #fadbd8;
+            color: var(--danger-color);
+        }}
+
+        .vuln-high, .vuln-medium, .vuln-low, .vuln-critical {{
+            font-weight: bold;
+            display: inline-block;
+            padding: 6px 15px;
+            border-radius: 50px;
+            text-align: center;
+            min-width: 100px;
+        }}
+
+        .vuln-critical {{
+            background-color: #ff4444;
+            color: white;
+        }}
+
+        .vuln-high {{
+            background-color: #fadbd8;
+            color: var(--danger-color);
+        }}
+
+        .vuln-medium {{
+            background-color: #ffeaa7;
+            color: #e67e22;
+        }}
+
+        .vuln-low {{
+            background-color: #fff3cd;
+            color: #f39c12;
+        }}
+
+        ul {{
+            padding-left: 20px;
+        }}
+
+        li {{
+            margin-bottom: 12px;
+            padding-left: 10px;
+            position: relative;
+        }}
+
+        li:before {{
+            content: '→';
+            position: absolute;
+            left: -15px;
+            color: var(--secondary-color);
+            font-weight: bold;
+        }}
+
+        pre {{
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-top: 15px;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+        }}
+
+        .status-badge {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }}
+
+        .footer {{
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: var(--gray-color);
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+        }}
+
+        .recommendation-list li {{
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--secondary-color);
+        }}
+
+        /* Responsive design */
+        @media (max-width: 768px) {{
+            .header h1 {{
+                font-size: 2rem;
+            }}
+            
+            .summary-cards {{
+                grid-template-columns: 1fr;
+            }}
+            
+            .score {{
+                font-size: 3rem;
+            }}
+            
+            table {{
+                display: block;
+                overflow-x: auto;
+            }}
+            
+            .section {{
+                padding: 20px;
+            }}
+        }}
+
+        /* Animation for grade */
+        @keyframes pulse {{
+            0% {{ transform: scale(1); }}
+            50% {{ transform: scale(1.05); }}
+            100% {{ transform: scale(1); }}
+        }}
+
+        .grade-f {{
+            animation: pulse 2s infinite;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-shield-alt"></i> Security Header Analysis Report</h1>
+            <p><i class="far fa-calendar-alt"></i> Generated: {analysis['scan_date']}</p>
+        </div>
+        
+        <div class="summary-cards">
+            <div class="card score-card">
+                <h3><i class="fas fa-chart-line"></i> Security Score</h3>
+                <div class="score">{analysis['security_score']}/100</div>
+                <div class="grade {grade_class}">{grade_display}</div>
+                <p style="margin-top: 15px; color: var(--gray-color);">{self._get_security_advice(analysis['security_score'])}</p>
             </div>
             
-            <div class="section">
-                <h2>Summary</h2>
-                <p><strong>URL:</strong> {{ url }}</p>
-                <p><strong>Security Score:</strong> {{ security_score }}/100</p>
-                <p><strong>Grade:</strong> <span class="grade-{{ grade.lower() }}">{{ grade }}</span></p>
+            <div class="card">
+                <h3><i class="fas fa-globe"></i> Target URL</h3>
+                <p style="font-size: 1.2rem; word-break: break-all;"><i class="fas fa-link"></i> {analysis['url']}</p>
+                <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <p><strong>Headers Analyzed:</strong> {len(analysis['headers_found'])}</p>
+                    <p><strong>Vulnerabilities Found:</strong> {total_vulnerabilities}</p>
+                    <p><strong>Missing Headers:</strong> {len(analysis['missing_headers'])}</p>
+                </div>
             </div>
-            
-            <div class="section">
-                <h2>Headers Analysis</h2>
-                <table>
-                    <tr><th>Header</th><th>Status</th><th>Value</th></tr>
-                    {% for header in required_headers %}
+        </div>
+        
+        <div class="section">
+            <h2><i class="fas fa-search"></i> Headers Analysis</h2>
+            <table>
+                <thead>
                     <tr>
-                        <td>{{ header }}</td>
-                        <td>
-                            {% if header.lower() in headers_found %}
-                            <span class="present">✓ Present</span>
-                            {% else %}
-                            <span class="missing">✗ Missing</span>
-                            {% endif %}
-                        </td>
-                        <td>{{ headers_found.get(header.lower(), 'N/A') }}</td>
+                        <th>Security Header</th>
+                        <th>Status</th>
+                        <th>Value / Issue</th>
                     </tr>
-                    {% endfor %}
-                </table>
-            </div>
-            
-            {% if vulnerabilities %}
-            <div class="section">
-                <h2>Vulnerabilities</h2>
-                <table>
-                    <tr><th>Severity</th><th>Description</th></tr>
-                    {% for vuln in vulnerabilities %}
-                    <tr>
-                        <td class="vuln-{{ vuln.severity }}">{{ vuln.severity|upper }}</td>
-                        <td>{{ vuln.description }}</td>
-                    </tr>
-                    {% endfor %}
-                </table>
-            </div>
-            {% endif %}
-            
-            {% if recommendations %}
-            <div class="section">
-                <h2>Recommendations</h2>
+                </thead>
+                <tbody>
+                    {headers_rows}
+                </tbody>
+            </table>
+        </div>
+        
+        {self._get_vulnerabilities_section(analysis['vulnerabilities'])}
+        
+        <div class="section">
+            <h2><i class="fas fa-lightbulb"></i> Recommendations</h2>
+            <div class="recommendation-list">
                 <ul>
-                    {% for rec in recommendations %}
-                    <li>{{ rec }}</li>
-                    {% endfor %}
+                    {recommendations_list}
                 </ul>
             </div>
-            {% endif %}
+        </div>
+        
+        <div class="section">
+            <h2><i class="fas fa-code"></i> Raw Headers</h2>
+            <pre>{json.dumps(raw_headers, indent=2, default=str)}</pre>
+        </div>
+        
+        <div class="footer">
+            <p><i class="fas fa-info-circle"></i> Report generated by Security Header Analyzer</p>
+            <p>This report highlights security vulnerabilities that should be addressed immediately.</p>
+        </div>
+    </div>
+    
+    <script>
+        // Simple script to add interactivity
+        document.addEventListener('DOMContentLoaded', function() {{
+            // Add click effect to cards
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {{
+                card.addEventListener('click', function() {{
+                    this.style.transform = 'translateY(-5px)';
+                    setTimeout(() => {{
+                        this.style.transform = '';
+                    }}, 200);
+                }});
+            }});
             
-            <div class="section">
-                <h2>Raw Headers</h2>
-                <pre>{{ raw_headers }}</pre>
-            </div>
-        </body>
-        </html>
-        """
-        
-        # Prepare context
-        context = {
-            'url': analysis['url'],
-            'scan_date': analysis['scan_date'],
-            'security_score': analysis['security_score'],
-            'grade': analysis['grade'],
-            'required_headers': self.config['security_headers']['required'],
-            'headers_found': analysis['headers_found'],
-            'vulnerabilities': analysis['vulnerabilities'],
-            'recommendations': analysis['recommendations'],
-            'raw_headers': json.dumps(
-                {k: v for k, v in analysis['headers_found'].items() if not k.startswith('_')},
-                indent=2
-            )
-        }
-        
-        # Render template
-        template = Template(html_template)
-        html_content = template.render(**context)
-        
+            // Highlight vulnerabilities on hover
+            const vulnRows = document.querySelectorAll('tbody tr');
+            vulnRows.forEach(row => {{
+                row.addEventListener('mouseenter', function() {{
+                    this.style.backgroundColor = '#fff9e6';
+                }});
+                row.addEventListener('mouseleave', function() {{
+                    this.style.backgroundColor = '';
+                }});
+            }});
+            
+            // Add timestamp update (demo)
+            const timestamp = document.querySelector('.header p');
+            if (timestamp) {{
+                const now = new Date();
+                const formatted = now.toISOString().replace('T', ' ').substring(0, 19);
+                timestamp.innerHTML = `<i class="far fa-calendar-alt"></i> Generated: ${{formatted}}`;
+            }}
+        }});
+    </script>
+</body>
+</html>"""
+    
         with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(html_content)
+            f.write(html_template)
         
         return filepath
 
+    def _prepare_headers_rows(self, analysis: Dict[str, Any]) -> str:
+        """Prepare HTML rows for headers analysis table"""
+        rows = []
+        required_headers = self.config['security_headers']['required']
+        
+        for header in required_headers:
+            header_lower = header.lower()
+            if header_lower in analysis['headers_found']:
+                status_html = '<div class="status-badge"><span class="present"><i class="fas fa-check-circle"></i> Present</span></div>'
+                value = analysis['headers_found'][header_lower]
+                
+                # Check for issues in present headers
+                issues = []
+                if header == 'Strict-Transport-Security':
+                    if 'max-age' in value.lower():
+                        import re
+                        max_age_match = re.search(r'max-age=(\d+)', value.lower())
+                        if max_age_match:
+                            max_age = int(max_age_match.group(1))
+                            if max_age < 63072000:  # 2 years
+                                issues.append('(Too low)')
+                
+                value_html = value
+                if issues:
+                    value_html = f"{value} <span style='color: var(--warning-color); font-weight: bold;'>{' '.join(issues)}</span>"
+            else:
+                status_html = '<div class="status-badge"><span class="missing"><i class="fas fa-times-circle"></i> Missing</span></div>'
+                value_html = "<span style='color: var(--danger-color);'>Critical security header missing</span>"
+            
+            rows.append(f"""
+                        <tr>
+                            <td><strong>{header}</strong></td>
+                            <td>{status_html}</td>
+                            <td>{value_html}</td>
+                        </tr>
+                        """)
+        
+        return '\n'.join(rows)
+
+    def _prepare_vulnerabilities_rows(self, vulnerabilities: List[Dict[str, Any]]) -> str:
+        """Prepare HTML rows for vulnerabilities table"""
+        rows = []
+        icons = {
+            'critical': 'fas fa-radiation',
+            'high': 'fas fa-bug',
+            'medium': 'fas fa-shield-alt',
+            'low': 'fas fa-info-circle'
+        }
+        
+        for vuln in vulnerabilities:
+            severity_class = f"vuln-{vuln['severity']}"
+            icon = icons.get(vuln['severity'], 'fas fa-exclamation-circle')
+            
+            rows.append(f"""
+                        <tr>
+                            <td><span class="{severity_class}">{vuln['severity'].upper()}</span></td>
+                            <td><i class="{icon}"></i> {vuln['description']}</td>
+                        </tr>
+                        """)
+        
+        return '\n'.join(rows)
+
+    def _get_vulnerabilities_section(self, vulnerabilities: List[Dict[str, Any]]) -> str:
+        """Get vulnerabilities section HTML"""
+        if not vulnerabilities:
+            return f"""
+            <div class="section">
+                <h2><i class="fas fa-exclamation-triangle"></i> Vulnerabilities Found</h2>
+                <p style="padding: 20px; background-color: #d5f4e6; border-radius: 8px; color: var(--success-color);">
+                    <i class="fas fa-check-circle"></i> No vulnerabilities found! Excellent security configuration.
+                </p>
+            </div>
+            """
+        
+        vulnerabilities_rows = self._prepare_vulnerabilities_rows(vulnerabilities)
+        
+        return f"""
+            <div class="section">
+                <h2><i class="fas fa-exclamation-triangle"></i> Vulnerabilities Found</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 120px;">Severity</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {vulnerabilities_rows}
+                    </tbody>
+                </table>
+            </div>
+            """
+
+    def _prepare_recommendations_list(self, recommendations: List[str]) -> str:
+        """Prepare HTML list for recommendations"""
+        if not recommendations:
+            return '<li>No recommendations. All security headers are properly configured.</li>'
+        
+        items = []
+        for rec in recommendations[:15]:  # Limit to 15 recommendations
+            # Format the recommendation nicely
+            if rec.startswith('Add missing header:'):
+                header = rec.replace('Add missing header:', '').strip()
+                items.append(f'<li><strong>Add missing header:</strong> {header} with appropriate directives</li>')
+            elif rec.startswith('Strengthen configuration for:'):
+                header = rec.replace('Strengthen configuration for:', '').strip()
+                items.append(f'<li><strong>Strengthen configuration for:</strong> {header}</li>')
+            elif rec.startswith('Remove or obfuscate header:'):
+                header = rec.replace('Remove or obfuscate header:', '').strip()
+                items.append(f'<li><strong>Remove or obfuscate header:</strong> {header}</li>')
+            elif rec.startswith('Consider adding recommended header:'):
+                header = rec.replace('Consider adding recommended header:', '').strip()
+                items.append(f'<li><strong>Consider adding recommended header:</strong> {header}</li>')
+            else:
+                items.append(f'<li>{rec}</li>')
+        
+        if len(recommendations) > 15:
+            items.append(f'<li>... and {len(recommendations) - 15} more recommendations</li>')
+        
+        return '\n'.join(items)
+
+    def _get_grade_text(self, grade: str) -> str:
+        """Get descriptive text for grade"""
+        grade_texts = {
+            'A': 'EXCELLENT',
+            'B': 'GOOD',
+            'C': 'FAIR',
+            'D': 'POOR',
+            'F': 'CRITICAL'
+        }
+        return grade_texts.get(grade, 'UNKNOWN')
+
+    def _get_security_advice(self, score: int) -> str:
+        """Get security advice based on score"""
+        if score >= 90:
+            return "Excellent security configuration"
+        elif score >= 80:
+            return "Good security, minor improvements possible"
+        elif score >= 70:
+            return "Fair security, some improvements needed"
+        elif score >= 60:
+            return "Poor security, significant improvements required"
+        else:
+            return "Critical security issues - needs immediate attention"
+        
     def _generate_combined_txt(self, analyses: List[Dict[str, Any]], filename_base: str) -> str:
         """Generate combined TXT report"""
         filepath = os.path.join(self.output_dir, f"{filename_base}.txt")
