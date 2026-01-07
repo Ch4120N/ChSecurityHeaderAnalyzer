@@ -122,7 +122,7 @@ class ChSecurityHeaderAnalyzer:
         elif args.file:
             self.analyze_from_file(args.file, output_formats, args.output_dir, args.threads)
         
-        self.ui.print_success("Analysis completed!")
+        self.ui.print_info("Analysis completed!")
 
     def analyze_single(self, url: str, output_formats: List[str] = None) -> Dict[str, Any]:
         """Analyze a single website"""
