@@ -254,4 +254,27 @@ class HeaderAnalyzer:
         else:
             return 'F'
     
-    
+
+    def _generate_recommendations(self, analysis: Dict[str, Any]) -> List[str]:
+        """Generate recommendations based on analysis"""
+        recommendations = []
+        
+        # Missing headers
+        for header in analysis['missing_headers']:
+            recommendations.append(f"Add missing header: {header}")
+        
+        # Weak headers
+        for header in analysis['weak_headers']:
+            recommendations.append(f"Strengthen configuration for: {header}")
+        
+        # Vulnerable headers
+        for vuln in analysis['vulnerabilities']:
+            if vuln['type'] == 'information_disclosure':
+                recommendations.append(f"Remove or obfuscate header: {vuln['header']}")
+        
+        # Add recommendations for missing recommended headers
+        for header in self.recommended_headers:
+            if header.lower() not in analysis['headers_found']:
+                recommendations.append(f"Consider adding recommended header: {header}")
+        
+        return recommendations
