@@ -22,6 +22,55 @@ class ReportGenerator:
         # Create output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
 
+    def _get_cookie_analysis_summary(self, cookie_analysis: List[Dict]) -> str:
+        """Get summary of cookie analysis"""
+        if not cookie_analysis:
+            return "No cookies set"
+        
+        secure_count = sum(1 for c in cookie_analysis if c.get('flags', {}).get('secure'))
+        httponly_count = sum(1 for c in cookie_analysis if c.get('flags', {}).get('httponly'))
+        samesite_count = sum(1 for c in cookie_analysis if 'samesite' in c.get('flags', {}))
+        issue_count = sum(len(c.get('issues', [])) for c in cookie_analysis)
+        
+        return f"{len(cookie_analysis)} cookies, {secure_count} Secure, {httponly_count} HttpOnly, {samesite_count} SameSite, {issue_count} issues"
+
+    def _get_cors_analysis_summary(self, cors_analysis: Dict) -> str:
+        """Get summary of CORS analysis"""
+        if not cors_analysis:
+            return "No CORS headers"
+        
+        issues = cors_analysis.get('issues', [])
+        origin = cors_analysis.get('access_control_allow_origin', 'Not set')
+        credentials = cors_analysis.get('access_control_allow_credentials', 'Not set')
+        
+        return f"Origin: {origin}, Credentials: {credentials}, Issues: {len(issues)}"
+
+    def _get_cache_analysis_summary(self, cache_analysis: Dict) -> str:
+        """Get summary of cache analysis"""
+        if not cache_analysis:
+            return "No cache control"
+        
+        issues = cache_analysis.get('issues', [])
+        directives = len(cache_analysis.get('directives', {}))
+        
+        return f"{directives} directives, Issues: {len(issues)}"
+
+    def _get_additional_checks_summary(self, additional_checks: Dict) -> str:
+        """Get summary of additional checks"""
+        if not additional_checks:
+            return "No additional checks performed"
+        
+        checks = []
+        if 'ssl_certificate' in additional_checks:
+            ssl = additional_checks['ssl_certificate']
+            checks.append(f"SSL: {'Valid' if ssl.get('valid') else 'Invalid'}")
+        
+        if 'server_banner' in additional_checks:
+            banner = additional_checks['server_banner']
+            checks.append(f"Server: {banner.get('disclosure', 'unknown')} disclosure")
+        
+        return ', '.join(checks)
+
     def generate_reports(self, analysis: Dict[str, Any], url: str, 
                         formats: List[str]) -> Dict[str, str]:
         """Generate reports in specified formats"""
