@@ -1,0 +1,61 @@
+# Security Headers Configuration
+security_headers:
+  required:
+    - Strict-Transport-Security
+    - Content-Security-Policy
+    - X-Frame-Options
+    - X-Content-Type-Options
+    - Referrer-Policy
+    - Permissions-Policy
+  
+  recommended:
+    - Cache-Control
+    - Clear-Site-Data
+    - Cross-Origin-Embedder-Policy
+    - Cross-Origin-Opener-Policy
+    - Cross-Origin-Resource-Policy
+  
+  vulnerable_headers:
+    - Server
+    - X-Powered-By
+    - X-AspNet-Version
+    - X-AspNetMvc-Version
+
+# Scanner Configuration
+scanner:
+  timeout: 10
+  max_redirects: 5
+  user_agent: "ChSecurityHeaderAnalyzer/1.0"
+  verify_ssl: true
+  follow_redirects: true
+  thread_count: 10
+  rate_limit: 10  # requests per second
+
+# Reporting Configuration
+reporting:
+  default_output_dir: "./reports"
+  formats:
+    - txt
+    - json
+    - csv
+    - html
+  include_timestamp: true
+  compress_reports: false
+
+# Vulnerabilities Configuration
+vulnerabilities:
+  missing_headers:
+    critical: ["Strict-Transport-Security", "Content-Security-Policy"]
+    high: ["X-Frame-Options", "X-Content-Type-Options"]
+    medium: ["Referrer-Policy", "Permissions-Policy"]
+  
+  weak_configurations:
+    hsts:
+      max_age_minimum: 31536000
+      include_subdomains: true
+      preload: true
+    
+    csp:
+      unsafe_inline: false
+      unsafe_eval: false
+      https_required: true
