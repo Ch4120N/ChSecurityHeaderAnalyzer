@@ -37,7 +37,58 @@ class ChSecurityHeaderAnalyzer:
         self.ui = ConsoleUI()
     
     def run(self):
-        pass
+        parser = argparse.ArgumentParser(
+                description="ChSecurityHeaderAnalyzer - Comprehensive Security Header Analysis Tool",
+                formatter_class=argparse.RawDescriptionHelpFormatter,
+                epilog="""
+        Examples:
+        %(prog)s https://example.com
+        %(prog)s -u https://example.com -o json csv
+        %(prog)s -f urls.txt -t 20 -o all
+        %(prog)s -u https://example.com --no-verify --timeout 30
+        %(prog)s -b -f urls.txt -o html --output-dir ./reports
+                """
+            )
+        
+        # Input options
+        input_group = parser.add_mutually_exclusive_group(required=True)
+        input_group.add_argument('-u', '--url', help='Single URL to analyze')
+        input_group.add_argument('-f', '--file', help='File containing URLs (one per line)')
+        input_group.add_argument('--bulk', action='store_true', help='Treat URL argument as comma-separated list')
+        
+        # Output options
+        parser.add_argument('-o', '--output', nargs='+', 
+                        choices=['txt', 'json', 'csv', 'html', 'all'],
+                        default=['txt'],
+                        help='Output format(s)')
+        parser.add_argument('--output-dir', help='Custom output directory')
+        parser.add_argument('--no-report', action='store_true', 
+                        help='Don\'t save reports, only display results')
+        
+        # Scan options
+        parser.add_argument('-t', '--threads', type=int, help='Number of threads for bulk scan')
+        parser.add_argument('--timeout', type=int, help='Request timeout in seconds')
+        parser.add_argument('--no-verify', action='store_true', 
+                        help='Disable SSL certificate verification')
+        parser.add_argument('--no-redirect', action='store_true',
+                        help='Disable following redirects')
+        parser.add_argument('--user-agent', help='Custom User-Agent string')
+        
+        # Display options
+        parser.add_argument('-v', '--verbose', action='store_true',
+                        help='Verbose output')
+        parser.add_argument('-q', '--quiet', action='store_true',
+                        help='Quiet mode (minimal output)')
+        parser.add_argument('--no-color', action='store_true',
+                        help='Disable colored output')
+        
+        # Other options
+        parser.add_argument('--version', action='version', 
+                        version='ChSecurityHeaderAnalyzer 1.0.0')
+        
+        args = parser.parse_args()
+
+        
 
     def analyze_single(self, url: str, output_formats: List[str] = None) -> Dict[str, Any]:
         """Analyze a single website"""
