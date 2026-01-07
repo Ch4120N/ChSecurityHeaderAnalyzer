@@ -115,3 +115,17 @@ def validate_url(url: str) -> bool:
         pass
     
     return False
+
+def sanitize_filename(filename: str) -> str:
+    """Sanitize string to be safe as filename"""
+    # Remove invalid characters
+    filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+    
+    # Remove control characters
+    filename = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', filename)
+    
+    # Limit length
+    if len(filename) > 255:
+        filename = filename[:255]
+    
+    return filename
