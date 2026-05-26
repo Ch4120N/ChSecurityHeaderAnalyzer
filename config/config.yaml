@@ -1,4 +1,4 @@
-# Security Headers Configuration
+# Security Headers Configuration (Refined for any website)
 security_headers:
   required:
     - Strict-Transport-Security
@@ -7,27 +7,27 @@ security_headers:
     - X-Content-Type-Options
     - Referrer-Policy
     - Permissions-Policy
-    - Set-Cookie
-    - Access-Control-Allow-Origin
-    - Access-Control-Allow-Credentials
-  
+
   recommended:
     - Cache-Control
-    - Clear-Site-Data
     - Cross-Origin-Embedder-Policy
     - Cross-Origin-Opener-Policy
     - Cross-Origin-Resource-Policy
-    - X-Permitted-Cross-Domain-Policies
-    - X-Download-Options
-    - Content-Type
     - X-DNS-Prefetch-Control
-    - Expect-CT
-    - Feature-Policy
-    - Public-Key-Pins
     - X-Robots-Tag
-    - X-Request-ID
-  
-  vulnerable_headers:
+    - Clear-Site-Data            # meaningful only on logout / sensitive pages
+    - Reporting-Endpoints        # modern equivalent of Report-To
+
+  # Deprecated or dangerous headers – warn but don't recommend implementing
+  deprecated:
+    - Expect-CT
+    - Public-Key-Pins
+    - Feature-Policy             # superseded by Permissions-Policy
+    - X-Download-Options         # IE8 only
+    - X-Permitted-Cross-Domain-Policies  # Flash/PDF rare
+
+  # Real information-disclosure headers (sensitive)
+  vulnerable:
     - Server
     - X-Powered-By
     - X-AspNet-Version
@@ -37,17 +37,28 @@ security_headers:
     - X-Generator
     - X-Drupal-Cache
     - X-Pingback
+    - X-Engine
+    - X-PHP-Version
+    - X-PHP-Platform
+    - X-Request-Id             # tracing ID, can be leaked if not UUID
+    - X-Cache-Info
+    - X-Cache-Hits
     - X-Backend-Server
     - X-Served-By
     - X-Host
     - X-Backend
     - X-Server
-    - X-Engine
-    - X-PHP-Version
-    - X-PHP-Platform
-    - X-Request-Id
-    - X-Cache-Info
-    - X-Cache-Hits
+    - X-Content-Duration
+    - X-Source-Scheme
+    - X-Original-URL
+    - X-Rewrite-URL
+    - X-Content-Type
+    - X-UA-Compatible
+    - X-Wap-Profile
+    - X-ATT-DeviceId
+
+  # Infrastructure/cdn headers – flagged as info only, no score penalty
+  infrastructure:
     - Via
     - X-Varnish
     - X-Amz-Cf-Id
@@ -55,28 +66,20 @@ security_headers:
     - CF-Ray
     - CF-Cache-Status
     - X-Google-Cache-Control
-    - X-Source-Scheme
     - X-Forwarded-Server
     - X-Forwarded-Host
     - X-Forwarded-Proto
-    - X-Original-URL
-    - X-Rewrite-URL
-    - X-Content-Type
-    - X-UA-Compatible
-    - X-Wap-Profile
-    - X-ATT-DeviceId
-    - X-Content-Duration
+    - X-Firefox-Security-Policy      # legacy Firefox CSP, low risk
+    - X-WebKit-CSP                   # legacy WebKit CSP
     - X-Content-Security-Policy
-    - X-WebKit-CSP
     - X-Content-Security-Policy-Report-Only
-    - X-Firefox-Security-Policy
-    - X-XSS-Protection
+    - X-Request-Id                  # often added by load balancers, informational
 
 # Scanner Configuration
 scanner:
   timeout: 10
   max_redirects: 5
-  user_agent: "ChSecurityHeaderAnalyzer/1.0"
+  user_agent: "ChSecurityHeaderAnalyzer/2.0"   # bumped version
   verify_ssl: true
   follow_redirects: true
   thread_count: 10
@@ -99,55 +102,58 @@ vulnerabilities:
     critical: 
       - Strict-Transport-Security
       - Content-Security-Policy
-      - Set-Cookie
     high: 
       - X-Frame-Options
       - X-Content-Type-Options
-      - Access-Control-Allow-Origin
-      - Access-Control-Allow-Credentials
     medium: 
       - Referrer-Policy
       - Permissions-Policy
-  
+
   weak_configurations:
     hsts:
-      max_age_minimum: 31536000
+      max_age_minimum: 31536000    # 1 year
       include_subdomains: true
-      preload: true
-    
+      preload: true                # recommended but not required for scoring
     csp:
       unsafe_inline: false
       unsafe_eval: false
       https_required: true
-    
     cookie:
       secure_required: true
       httponly_required: true
-      samesite_required: "Strict"
-    
+      samesite_required: "Lax"     # Lax is the modern safe baseline
     cors:
       wildcard_allowed: false
       credentials_with_wildcard: false
-      methods_exposed: ["GET", "POST", "HEAD", "OPTIONS"]
-    
+      methods_exposed: ["GET", "POST", "HEAD", "OPTIONS", "PUT", "DELETE"]  # allowed safe/rest methods
     cache:
-      no_store_required: true
+      # Only flag issues if no-store is missing on HTML pages (context dependent).
+      # We lower severity to "info" for static resources (analyst note).
+      no_store_required: false
       no_cache_required: false
-      private_required: true
-      must_revalidate_required: true
+      private_required: false
+      must_revalidate_required: false
 
-# Grading Configuration
+# Grading Configuration – used by the analyzer to calculate score
 grading:
-  score_weights:
-    required_header: 10
-    recommended_header: 5
-    vulnerable_header_found: -15
-    weak_configuration: -5
-  
+  # Adjust deductions to be realistic
+  missing_critical: -10
+  missing_high: -7
+  missing_medium: -4
+  recommended_missing: -2
+  vulnerable_header_found: -8        # real info leak
+  infrastructure_header_found: 0     # no deduction
+  deprecated_header_found: -2
+  weak_configuration: -5
+  bonus_present_required: 3
+  bonus_present_recommended: 2
+  bonus_strong_csp: 10
+  bonus_strong_hsts: 10
+
   grade_thresholds:
-    A: 80
-    B: 65
-    C: 50
+    A: 85
+    B: 70
+    C: 55
     D: 35
     F: 0
 
@@ -156,8 +162,8 @@ additional_checks:
   check_cookie_flags: true
   check_csp_directives: true
   check_cors_configuration: true
-  check_hsts_preload_status: false
+  check_hsts_preload_status: false   # set true to check preload eligibility
   check_ssl_certificate: true
-  check_tls_version: true
+  check_tls_version: true            # not yet implemented in scanner
   check_http_methods: true
   check_server_banner: true
