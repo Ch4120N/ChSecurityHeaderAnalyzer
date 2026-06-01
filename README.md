@@ -9,7 +9,7 @@
 
 ![Language](https://img.shields.io/badge/Language-Python_3.7+-purple?style=for-the-badge&logo=python)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-red?style=for-the-badge&logo=windows&logoColor=white)
-![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-2.0.1-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-GPLv3-orange?style=for-the-badge)
 
 ---
